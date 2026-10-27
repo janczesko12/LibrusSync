@@ -98,7 +98,10 @@ struct ContentView: View {
                     } else if KeychainStore.save(cleaned, key: "calendarFeedURL") {
                         saveError = nil
                         BackgroundRefreshScheduler.shared.scheduleNext()
-                        showSavedMessage = true
+                        Task {
+                            _ = await LocalNotificationService.requestAuthorization()
+                            showSavedMessage = true
+                        }
                     } else {
                         saveError = "Nie udało się zapisać adresu w pęku kluczy iOS."
                     }
