@@ -32,7 +32,7 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
 final class LibrusClient {
     static let shared = LibrusClient()
     private let session: URLSession
-    private let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    private let userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
     private let portalLogin = URL(string: "https://synergia.librus.pl/loguj/portalRodzina")!
     private let authorizationURL = URL(string: "https://api.librus.pl/OAuth/Authorization?client_id=46")!
     private let authorizationScopedURL = URL(string: "https://api.librus.pl/OAuth/Authorization?client_id=46&response_type=code&scope=mydata")!
@@ -90,6 +90,9 @@ final class LibrusClient {
         form.httpMethod = "POST"
         form.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
         form.setValue("*/*", forHTTPHeaderField: "Accept")
+        form.setValue("en-US,en;q=0.9,pl;q=0.8", forHTTPHeaderField: "Accept-Language")
+        form.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        form.setValue("no-cache", forHTTPHeaderField: "Pragma")
         form.setValue("https://api.librus.pl", forHTTPHeaderField: "Origin")
         form.setValue(authorizationURL.absoluteString, forHTTPHeaderField: "Referer")
         form.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
