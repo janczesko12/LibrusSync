@@ -16,9 +16,9 @@ concurrency:
 
 jobs:
   build:
-    name: Build LibrusSync (iOS Simulator)
+    name: Build LibrusSync
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -27,7 +27,30 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Build app
+      - name: Build for iPhone (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LibrusSync.xcodeproj \
+            -scheme LibrusSync \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DeviceDerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p package/Payload
+          /usr/bin/ditto build/DeviceDerivedData/Build/Products/Debug-iphoneos/LibrusSync.app package/Payload/LibrusSync.app
+          cd package
+          /usr/bin/zip -qry "${GITHUB_WORKSPACE}/LibrusSync-unsigned.ipa" Payload
+          /usr/bin/unzip -t "${GITHUB_WORKSPACE}/LibrusSync-unsigned.ipa"
+
+      - name: Build for iOS Simulator
         run: |
           set -o pipefail
           xcodebuild \
@@ -36,16 +59,24 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/DerivedData \
+            -derivedDataPath build/SimulatorDerivedData \
             CODE_SIGNING_ALLOWED=NO \
             build
 
       - name: Package simulator app
         run: |
-          cd build/DerivedData/Build/Products/Debug-iphonesimulator
+          cd build/SimulatorDerivedData/Build/Products/Debug-iphonesimulator
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent LibrusSync.app "${GITHUB_WORKSPACE}/LibrusSync-Simulator.zip"
 
-      - name: Upload build artifact
+      - name: Upload unsigned iPhone IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibrusSync-iOS-unsigned-IPA
+          path: LibrusSync-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload simulator build
         uses: actions/upload-artifact@v4
         with:
           name: LibrusSync-iOS-Simulator
