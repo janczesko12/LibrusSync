@@ -30,7 +30,16 @@ struct ContentView: View {
             .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background { BackgroundRefreshScheduler.shared.scheduleNext() }
+                switch phase {
+                case .active:
+                    Task { await syncManager.appBecameActive() }
+                case .background:
+                    BackgroundRefreshScheduler.shared.scheduleNext()
+                case .inactive:
+                    break
+                @unknown default:
+                    break
+                }
             }
             .confirmationDialog("Odłączyć konto Librus?", isPresented: $showDisconnectConfirmation, titleVisibility: .visible) {
                 Button("Odłącz konto", role: .destructive) {
