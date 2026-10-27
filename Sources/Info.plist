@@ -24,6 +24,9 @@
     <true/>
     <key>UIRequiresFullScreen</key>
     <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>LibrusSync dodaje i aktualizuje wydarzenia w osobnym kalendarzu LibrusSync.</string>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
