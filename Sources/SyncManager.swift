@@ -6,109 +6,172 @@ import BackgroundTasks
 final class SyncManager: ObservableObject {
     static let shared = SyncManager()
 
-    @Published private(set) var status = "Gotowy do synchronizacji"
+    @Published private(set) var status = "Połącz swoje konto Librus"
     @Published private(set) var lastSync: Date?
     @Published private(set) var isSyncing = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var recentEvents: [AgendaEvent] = []
+    @Published private(set) var isLibrusConnected = false
+    @Published private(set) var librusDisplayName: String?
+    @Published private(set) var calendarChoices: [AppleCalendarChoice] = []
+    @Published private(set) var selectedCalendarIdentifier: String?
 
     private let defaults = UserDefaults.standard
-    private let client = CalendarFeedClient()
+    private let client = LibrusClient.shared
     private let writer = CalendarWriter.shared
 
     private init() {
         lastSync = defaults.object(forKey: "lastSuccessfulSync") as? Date
         if let data = defaults.data(forKey: "recentAgendaEvents"),
-           let decoded = try? JSONDecoder().decode([AgendaEvent].self, from: data) {
-            recentEvents = decoded
-        }
-        status = KeychainStore.read(key: "calendarFeedURL") == nil
-            ? "Dodaj źródło kalendarza"
-            : "Gotowy do synchronizacji"
+           let decoded = try? JSONDecoder().decode([AgendaEvent].self, from: data) { recentEvents = decoded }
+        isLibrusConnected = KeychainStore.read(key: "librusLogin") != nil && KeychainStore.read(key: "librusPassword") != nil
+        librusDisplayName = defaults.string(forKey: "librusDisplayName")
+        status = isLibrusConnected ? "Konto Librus zapisane" : "Połącz swoje konto Librus"
+        refreshCalendarState()
     }
 
-    func syncNow(feedURL: String) async {
-        let cleaned = feedURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else {
-            errorMessage = "Najpierw dodaj adres źródła kalendarza (.ics)."
-            status = "Brak źródła"
-            return
-        }
-        guard KeychainStore.save(cleaned, key: "calendarFeedURL") else {
-            errorMessage = "Nie udało się bezpiecznie zapisać adresu w pęku kluczy iOS."
-            status = "Błąd konfiguracji"
-            return
-        }
-        BackgroundRefreshScheduler.shared.scheduleNext()
-
+    func connectLibrus(login: String, password: String) async {
+        guard !isSyncing else { return }
         isSyncing = true
         errorMessage = nil
-        status = "Pobieram terminarz…"
+        status = "Łączenie z Librus Synergia…"
         defer { isSyncing = false }
-
         do {
-            let events = try await client.fetchEvents(from: cleaned)
-            let prior = defaults.dictionary(forKey: "knownEventFingerprints") as? [String: String] ?? [:]
-            let isFirstSync = !defaults.bool(forKey: "hasCompletedInitialImport")
-
-            if !events.isEmpty {
-                try await writer.requestAccess()
+            let cleanedLogin = login.trimmingCharacters(in: .whitespacesAndNewlines)
+            let snapshot = try await client.connect(login: cleanedLogin, password: password)
+            guard KeychainStore.save(cleanedLogin, key: "librusLogin"),
+                  KeychainStore.save(password, key: "librusPassword") else {
+                errorMessage = "Nie udało się bezpiecznie zapisać danych w pęku kluczy iOS."
+                status = "Błąd bezpiecznego zapisu"
+                return
             }
+            isLibrusConnected = true
+            librusDisplayName = snapshot.displayName
+            defaults.set(snapshot.displayName, forKey: "librusDisplayName")
+            _ = await LocalNotificationService.requestAuthorization()
+            await apply(snapshot, initialConnection: true)
+        } catch {
+            errorMessage = error.localizedDescription
+            status = "Nie udało się połączyć z Librusem"
+        }
+    }
 
-            var next = prior
-            var additions = 0
-            var changes = 0
-
-            for item in events {
-                let fingerprint = item.fingerprint
-                if let oldFingerprint = prior[item.uid] {
-                    if oldFingerprint != fingerprint {
-                        try writer.upsert(item)
-                        next[item.uid] = fingerprint
-                        changes += 1
-                        if !isFirstSync {
-                            await LocalNotificationService.notify(for: item, updated: true)
-                        }
-                    }
-                } else {
-                    try writer.upsert(item)
-                    next[item.uid] = fingerprint
-                    additions += 1
-                    if !isFirstSync {
-                        await LocalNotificationService.notify(for: item, updated: false)
-                    }
-                }
-            }
-
-            defaults.set(next, forKey: "knownEventFingerprints")
-            defaults.set(true, forKey: "hasCompletedInitialImport")
-            defaults.set(Date(), forKey: "lastSuccessfulSync")
-            defaults.set(try? JSONEncoder().encode(Array(events.prefix(20))), forKey: "recentAgendaEvents")
-
-            recentEvents = Array(events.prefix(20))
-            lastSync = Date()
-            if isFirstSync {
-                status = "Pierwszy import ukończony"
-            } else if additions == 0 && changes == 0 {
-                status = "Brak zmian"
-            } else {
-                status = "Dodano: \(additions), zmieniono: \(changes)"
-            }
+    func synchronizeNow() async {
+        guard !isSyncing else { return }
+        guard let login = KeychainStore.read(key: "librusLogin"),
+              let password = KeychainStore.read(key: "librusPassword") else {
+            errorMessage = "Najpierw połącz konto Librus Synergia."
+            status = "Konto niepołączone"
+            isLibrusConnected = false
+            return
+        }
+        isSyncing = true
+        errorMessage = nil
+        status = "Pobieram aktualny terminarz…"
+        BackgroundRefreshScheduler.shared.scheduleNext()
+        defer { isSyncing = false }
+        do {
+            let snapshot = try await client.synchronize(login: login, password: password)
+            librusDisplayName = snapshot.displayName
+            defaults.set(snapshot.displayName, forKey: "librusDisplayName")
+            await apply(snapshot, initialConnection: false)
         } catch {
             errorMessage = error.localizedDescription
             status = "Synchronizacja nieudana"
         }
     }
 
+    func prepareAppleCalendar() async {
+        do {
+            try await writer.prepareAccessAndLoadCalendars()
+            refreshCalendarState()
+            errorMessage = nil
+            status = "Kalendarz Apple połączony"
+        } catch {
+            errorMessage = error.localizedDescription
+            status = "Kalendarz Apple niedostępny"
+        }
+    }
+
+    func selectCalendar(_ identifier: String) {
+        writer.selectCalendar(identifier: identifier)
+        refreshCalendarState()
+    }
+
+    func disconnectLibrus() {
+        KeychainStore.delete(key: "librusLogin")
+        KeychainStore.delete(key: "librusPassword")
+        client.clearSession()
+        defaults.removeObject(forKey: "librusDisplayName")
+        defaults.removeObject(forKey: "knownEventFingerprints")
+        defaults.removeObject(forKey: "hasCompletedInitialImport")
+        isLibrusConnected = false
+        librusDisplayName = nil
+        errorMessage = nil
+        status = "Konto Librus odłączone"
+    }
+
     func handleBackgroundTask(_ task: BGAppRefreshTask) {
         BackgroundRefreshScheduler.shared.scheduleNext()
         let operation = Task { @MainActor in
-            let source = KeychainStore.read(key: "calendarFeedURL") ?? ""
-            await self.syncNow(feedURL: source)
+            await self.synchronizeNow()
             task.setTaskCompleted(success: self.errorMessage == nil)
         }
-        task.expirationHandler = {
-            operation.cancel()
+        task.expirationHandler = { operation.cancel() }
+    }
+
+    private func apply(_ snapshot: LibrusSnapshot, initialConnection: Bool) async {
+        do {
+            try await writer.prepareAccessAndLoadCalendars()
+            refreshCalendarState()
+            let prior = defaults.dictionary(forKey: "knownEventFingerprints") as? [String: String] ?? [:]
+            let isFirstSync = !defaults.bool(forKey: "hasCompletedInitialImport")
+            var next = prior
+            var added = 0
+            var changed = 0
+
+            for item in snapshot.events {
+                let fingerprint = item.fingerprint
+                if let old = prior[item.uid] {
+                    if old != fingerprint {
+                        try writer.upsert(item)
+                        next[item.uid] = fingerprint
+                        changed += 1
+                        if !isFirstSync && !initialConnection { await LocalNotificationService.notify(for: item, updated: true) }
+                    }
+                } else {
+                    try writer.upsert(item)
+                    next[item.uid] = fingerprint
+                    added += 1
+                    if !isFirstSync && !initialConnection { await LocalNotificationService.notify(for: item, updated: false) }
+                }
+            }
+
+            defaults.set(next, forKey: "knownEventFingerprints")
+            defaults.set(true, forKey: "hasCompletedInitialImport")
+            defaults.set(Date(), forKey: "lastSuccessfulSync")
+            defaults.set(try? JSONEncoder().encode(Array(snapshot.events.prefix(30))), forKey: "recentAgendaEvents")
+            recentEvents = Array(snapshot.events.prefix(30))
+            lastSync = Date()
+            if snapshot.events.isEmpty {
+                status = "Połączono • brak wydarzeń w terminarzu"
+            } else if isFirstSync {
+                status = "Pierwsza synchronizacja ukończona"
+            } else if added == 0 && changed == 0 {
+                status = "Wszystko aktualne"
+            } else {
+                status = "Nowe: \(added) • Zmienione: \(changed)"
+            }
+            errorMessage = nil
+            BackgroundRefreshScheduler.shared.scheduleNext()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = "Połączono, ale synchronizacja kalendarza nie powiodła się"
         }
+    }
+
+    private func refreshCalendarState() {
+        calendarChoices = writer.calendars
+        selectedCalendarIdentifier = writer.selectedCalendarIdentifier
     }
 }

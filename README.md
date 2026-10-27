@@ -1,47 +1,37 @@
 # LibrusSync
 
-Natywna aplikacja SwiftUI dla iOS 17+, która synchronizuje wydarzenia z kalendarza iCalendar (.ics) z Kalendarzem Apple. Nie wymaga własnego backendu.
+Natywna aplikacja SwiftUI dla iOS 17+, która pobiera terminarz z Librus Synergia, wykrywa nowe i zmienione wpisy i dodaje je do wybranego kalendarza Apple. Nie wymaga własnego backendu.
 
-## Co jest w tej wersji
+## Funkcje
 
-- Pobieranie kalendarza przez HTTPS.
-- Parsowanie podstawowych wydarzeń iCalendar (VEVENT, UID, SUMMARY, DTSTART, DTEND, DESCRIPTION, TZID).
-- Wykrywanie nowych i zmienionych wydarzeń na podstawie UID i treści.
-- Zapisywanie wydarzeń w osobnym kalendarzu Apple o nazwie LibrusSync.
-- Lokalne powiadomienia o nowych i zaktualizowanych wpisach.
-- Zapisywanie źródła kalendarza w iOS Keychain.
+- Bezpośrednie logowanie do Librus Synergia przez nieoficjalny, społecznościowo poznany przepływ logowania/API.
+- Pobieranie terminarza z endpointu HomeWorks (sprawdziany, kartkówki, spotkania i inne wpisy udostępnione przez konto).
+- Wzbogacanie tytułów o nazwę kategorii i przedmiotu, jeśli API je zwraca.
+- Wykrywanie nowych i zmienionych wydarzeń na podstawie identyfikatora i treści.
+- Wybór zapisywalnego kalendarza Apple, np. iCloud lub lokalnego.
+- Powiadomienia lokalne o nowych i zmienionych wpisach.
+- Przechowywanie loginu i hasła tylko w Keychain urządzenia.
 - Próba synchronizacji w tle przez BGAppRefreshTask.
-- GitHub Actions budujący aplikację na symulator i publikujący ZIP jako artefakt.
+- GitHub Actions budujący aplikację na iPhone'a (niepodpisany IPA) i symulator.
 
-## Ważne ograniczenie integracji z Librusem
+## Pierwsze uruchomienie
 
-Ta wersja **nie loguje się bezpośrednio do konta Librus i nie pobiera jeszcze terminarza przez jego stronę**. Do synchronizacji wymaga adresu kalendarza HTTPS w formacie .ics. Nie zakładaj, że Librus udostępnia taki adres w Twojej szkole — trzeba go mieć z obsługiwanego źródła kalendarza. Nie wpisuj tutaj hasła do Librusa.
+1. Otwórz aplikację na iPhonie.
+2. Wprowadź login i hasło do konta **Librus Synergia**.
+3. Kliknij **Połącz z Librusem** i zaakceptuj żądanie dostępu do Kalendarza Apple.
+4. W sekcji Kalendarz Apple wybierz docelowy kalendarz.
+5. Użyj **Synchronizuj teraz** do ręcznej synchronizacji.
 
-Bezpośrednie logowanie przez nieoficjalne, odtwarzane API/HTML byłoby kruche ze względu na zmiany procesu logowania. Należy zaimplementować i przetestować osobny adapter Librus przed nazywaniem tej integracji gotową.
+## Ważne ograniczenia
 
-## Jak uruchomić
-
-1. Otwórz LibrusSync.xcodeproj w Xcode na macOS.
-2. Wybierz schemat LibrusSync i symulator iPhone’a.
-3. Uruchom aplikację.
-4. Wklej prywatny adres kalendarza .ics rozpoczynający się od https:// i wybierz Sprawdź teraz.
-5. Zaakceptuj dostęp do Kalendarza Apple. Wydarzenia będą dodawane do kalendarza LibrusSync.
-
-Pierwsza synchronizacja importuje zdarzenia jako stan początkowy bez wysyłania serii powiadomień. Kolejne synchronizacje powiadamiają o nowych lub zmienionych wydarzeniach.
-
-## GitHub Actions
-
-Workflow znajduje się w .github/workflows/ios-build.yml. Uruchamia się po pushu, pull requeście i ręcznie z zakładki Actions. Po udanym buildzie pobierz artefakt LibrusSync-iOS-Simulator.
-
-Artefakt symulatora nie jest plikiem IPA do instalacji na iPhonie. IPA dla urządzenia wymaga kompilacji na iOS Device oraz podpisywania certyfikatem i profilem provisioning.
-
-## Ograniczenia iOS
-
-BGAppRefreshTask nie gwarantuje uruchomienia o konkretnej godzinie. iOS sam dobiera moment wybudzenia, a wymuszone zamknięcie aplikacji może zatrzymać zadania w tle do kolejnego uruchomienia.
+- Integracja używa nieoficjalnego API i nie jest wspierana przez Librus. Proces logowania i struktura danych mogą się zmienić; może też pojawić się dodatkowa weryfikacja/CAPTCHA. Aplikacja nie próbuje obchodzić takich zabezpieczeń.
+- BGAppRefreshTask nie gwarantuje konkretnej częstotliwości. iOS sam dobiera termin wybudzenia, a wymuszone zamknięcie aplikacji może zatrzymać zadania w tle.
+- Jeśli konto szkolne nie ma dostępu do terminarza, aplikacja nie będzie mogła go pobrać.
+- IPA z GitHub Actions jest niepodpisany i przed instalacją na iPhonie wymaga podpisania.
 
 ## Prywatność
 
-- Adres kalendarza jest przechowywany w Keychain urządzenia.
-- Login i hasło do Librusa nie są zbierane ani przechowywane.
-- Aplikacja nie wysyła danych do własnego serwera.
-- Adres kalendarza może sam w sobie być prywatnym linkiem — nie udostępniaj go publicznie.
+- Login i hasło są zapisane w Keychain urządzenia.
+- Sesja HTTP jest utrzymywana w systemowym magazynie ciasteczek aplikacji.
+- Dane nie są wysyłane do własnego serwera.
+- Nie umieszczaj danych konta w Issue, zrzutach ekranu ani commitach.

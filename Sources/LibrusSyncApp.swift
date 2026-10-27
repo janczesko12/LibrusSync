@@ -9,23 +9,17 @@ struct LibrusSyncApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        WindowGroup { ContentView() }
     }
 }
 
 final class BackgroundRefreshScheduler {
     static let shared = BackgroundRefreshScheduler()
     static let identifier = "pl.novydev.librussync.refresh"
-
     private init() {}
 
     func register() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.identifier,
-            using: nil
-        ) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.identifier, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else {
                 task.setTaskCompleted(success: false)
                 return
@@ -35,18 +29,10 @@ final class BackgroundRefreshScheduler {
     }
 
     func scheduleNext() {
-        guard let source = KeychainStore.read(key: "calendarFeedURL"),
-              !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return
-        }
-
+        guard let login = KeychainStore.read(key: "librusLogin"), !login.isEmpty,
+              let password = KeychainStore.read(key: "librusPassword"), !password.isEmpty else { return }
         let request = BGAppRefreshTaskRequest(identifier: Self.identifier)
-        // To minimalny termin, o reszcie decyduje iOS.
         request.earliestBeginDate = Date(timeIntervalSinceNow: 45 * 60)
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            // iOS może odrzucić lub połączyć zaplanowane zadania.
-        }
+        do { try BGTaskScheduler.shared.submit(request) } catch { }
     }
 }

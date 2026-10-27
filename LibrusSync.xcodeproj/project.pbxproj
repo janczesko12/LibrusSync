@@ -12,6 +12,7 @@
     A10000000000000000000006 /* ICalendarParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* ICalendarParser.swift */; };
     A10000000000000000000007 /* CalendarWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* CalendarWriter.swift */; };
     A10000000000000000000008 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* SyncManager.swift */; };
+    A10000000000000000000009 /* LibrusClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LibrusClient.swift */; };
 
     A20000000000000000000001 /* LibrusSyncApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LibrusSyncApp.swift; sourceTree = "<group>"; };
     A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ContentView.swift; sourceTree = "<group>"; };
@@ -22,6 +23,7 @@
     A20000000000000000000007 /* CalendarWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/CalendarWriter.swift; sourceTree = "<group>"; };
     A20000000000000000000008 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/SyncManager.swift; sourceTree = "<group>"; };
     A20000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Sources/Info.plist; sourceTree = "<group>"; };
+    A20000000000000000000011 /* LibrusClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/LibrusClient.swift; sourceTree = "<group>"; };
     A20000000000000000000010 /* LibrusSync.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LibrusSync.app; sourceTree = BUILT_PRODUCTS_DIR; };
 
     A30000000000000000000001 = {
@@ -94,6 +96,7 @@
       A10000000000000000000006,
       A10000000000000000000007,
       A10000000000000000000008,
+      A10000000000000000000009,
     ); runOnlyForDeploymentPostprocessing = 0; };
     A50000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
     A50000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
