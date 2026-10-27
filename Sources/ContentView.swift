@@ -7,7 +7,7 @@ struct ContentView: View {
     @State private var password = KeychainStore.read(key: "librusPassword") ?? ""
     @State private var showDisconnectConfirmation = false
 
-    private let ink = Color(red: 0.13, green: 0.16, blue: 0.27)
+    private let ink = Color(uiColor: .label)
     private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
     private let lilac = Color(red: 0.63, green: 0.48, blue: 0.98)
 
@@ -53,7 +53,9 @@ struct ContentView: View {
             }
         }
         .tint(violet)
-        .preferredColorScheme(.light)
+        .task {
+            await syncManager.requestPermissionsOnLaunch()
+        }
     }
 
     private var topBar: some View {
@@ -246,7 +248,7 @@ struct ContentView: View {
                     Image(systemName: "arrow.right").font(.headline.weight(.semibold))
                 }
                 .foregroundStyle(.white).padding(17)
-                .background(LinearGradient(colors: [ink, Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .background(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.23), Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
             }
             .buttonStyle(.plain).disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
 
