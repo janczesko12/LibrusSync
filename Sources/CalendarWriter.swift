@@ -55,10 +55,20 @@ final class CalendarWriter {
 }
 
 enum LocalNotificationService {
-    static func notify(for item: AgendaEvent, updated: Bool) async {
+    static func requestAuthorization() async -> Bool {
         let center = UNUserNotificationCenter.current()
-        let allowed = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-        guard allowed else { return }
+        let settings = await center.notificationSettings()
+        if settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional {
+            return true
+        }
+        guard settings.authorizationStatus == .notDetermined else { return false }
+        return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+    }
+
+    static func notify(for item: AgendaEvent, updated: Bool) async {
+        guard await requestAuthorization() else { return }
+        let center = UNUserNotificationCenter.current()
 
         let content = UNMutableNotificationContent()
         content.title = updated ? "Zmieniono wpis w terminarzu" : "Nowy wpis w terminarzu"
