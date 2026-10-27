@@ -104,7 +104,12 @@ final class CalendarWriter: ObservableObject {
 }
 
 enum LocalNotificationService {
+    static func configure() {
+        UNUserNotificationCenter.current().delegate = NotificationPresentationDelegate.shared
+    }
+
     static func requestAuthorization() async -> Bool {
+        configure()
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional { return true }
@@ -126,5 +131,18 @@ enum LocalNotificationService {
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
         try? await UNUserNotificationCenter.current().add(request)
+    }
+}
+
+
+private final class NotificationPresentationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationPresentationDelegate()
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .badge])
     }
 }
