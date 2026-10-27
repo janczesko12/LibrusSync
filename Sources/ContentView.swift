@@ -58,12 +58,11 @@ struct ContentView: View {
     private var topBar: some View {
         HStack(spacing: 11) {
             ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [violet, lilac], startPoint: .topLeading, endPoint: .bottomTrailing))
+                Image("AppIcon")
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 45, height: 45)
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("LibrusSync").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundStyle(ink)
