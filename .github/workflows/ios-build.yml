@@ -24,6 +24,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Generate app icon PNG from vector logo
+        run: |
+          brew install librsvg
+          rsvg-convert -w 1024 -h 1024 Assets.xcassets/AppIcon.svg -o Assets.xcassets/AppIcon.appiconset/AppIcon.png
+
       - name: Show Xcode version
         run: xcodebuild -version
 
