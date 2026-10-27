@@ -111,6 +111,23 @@ final class SyncManager: ObservableObject {
         status = "Konto Librus odłączone"
     }
 
+    /// Called whenever the app becomes active. iOS does not expose a reliable
+    /// callback for every device unlock; this runs when the app returns to the foreground.
+    func appBecameActive() async {
+        guard isLibrusConnected else { return }
+
+        // If notifications have not been configured yet, ask for permission.
+        _ = await LocalNotificationService.requestAuthorization()
+
+        // Avoid repeated requests if the app briefly becomes active multiple times.
+        let minimumInterval: TimeInterval = 5 * 60
+        if lastSync == nil || Date().timeIntervalSince(lastSync!) >= minimumInterval {
+            await synchronizeNow()
+        } else {
+            BackgroundRefreshScheduler.shared.scheduleNext()
+        }
+    }
+
     func handleBackgroundTask(_ task: BGAppRefreshTask) {
         BackgroundRefreshScheduler.shared.scheduleNext()
         let operation = Task { @MainActor in
