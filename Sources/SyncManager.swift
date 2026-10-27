@@ -111,6 +111,20 @@ final class SyncManager: ObservableObject {
         status = "Konto Librus odłączone"
     }
 
+    /// Ask for notification and calendar permission on the first app launch.
+    /// iOS only shows each system prompt while its permission is not determined.
+    func requestPermissionsOnLaunch() async {
+        _ = await LocalNotificationService.requestAuthorization()
+        do {
+            try await writer.prepareAccessAndLoadCalendars()
+            refreshCalendarState()
+        } catch {
+            // Keep the app usable if the user declines; the calendar card remains
+            // available so the user can try again or change access in iOS Settings.
+            refreshCalendarState()
+        }
+    }
+
     /// Called whenever the app becomes active. iOS does not expose a reliable
     /// callback for every device unlock; this runs when the app returns to the foreground.
     func appBecameActive() async {
