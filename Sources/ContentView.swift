@@ -53,6 +53,7 @@ struct ContentView: View {
             }
         }
         .tint(violet)
+        .preferredColorScheme(.light)
     }
 
     private var topBar: some View {
