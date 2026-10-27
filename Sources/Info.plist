@@ -22,6 +22,8 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>UIRequiresFullScreen</key>
+    <true/>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>LibrusSync dodaje i aktualizuje wydarzenia w osobnym kalendarzu LibrusSync.</string>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
@@ -33,8 +35,6 @@
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
 </dict>
 </plist>
