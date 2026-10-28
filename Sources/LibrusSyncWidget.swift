@@ -72,60 +72,87 @@ struct LibrusSyncUpcomingWidgetView: View {
             case .accessoryCircular, .accessoryRectangular, .accessoryInline:
                 Color.clear
             default:
-                Color(red: 0.30, green: 0.24, blue: 0.82)
+                LinearGradient(
+                    colors: [Color(red: 0.28, green: 0.22, blue: 0.78), Color(red: 0.58, green: 0.36, blue: 0.94)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             }
         }
     }
 
     private var homeScreenView: some View {
-        ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: [Color(red: 0.28, green: 0.22, blue: 0.78), Color(red: 0.58, green: 0.36, blue: 0.94)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar.badge.clock")
-                    Text("LIBRUSSYNC").tracking(1.1)
-                    Spacer(minLength: 0)
-                }
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.8))
+        VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
+            HStack(spacing: 5) {
+                Image(systemName: "calendar.badge.clock")
+                Text("LIBRUSSYNC").tracking(0.8)
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: family == .systemSmall ? 9 : 10, weight: .bold))
+            .foregroundStyle(.white.opacity(0.82))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
 
-                if let event = nextEvent {
-                    Text(event.isAssessment ? "NAJBLIŻSZY SPRAWDZIAN" : "NAJBLIŻSZE WYDARZENIE")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.78))
-                    Text(event.title)
-                        .font(.system(size: family == .systemSmall ? 16 : 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(family == .systemSmall ? 3 : 2)
-                        .minimumScaleFactor(0.8)
-                    Spacer(minLength: 0)
-                    HStack(alignment: .lastTextBaseline) {
+            if let event = nextEvent {
+                Text(event.isAssessment
+                     ? (family == .systemSmall ? "SPRAWDZIAN" : "NAJBLIŻSZY SPRAWDZIAN")
+                     : (family == .systemSmall ? "WYDARZENIE" : "NAJBLIŻSZE WYDARZENIE"))
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text(event.title)
+                    .font(.system(size: family == .systemSmall ? 15 : 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(family == .systemSmall ? 3 : 2)
+                    .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+
+                if family == .systemSmall {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(event.countdownLabel)
-                            .font(.system(size: family == .systemSmall ? 18 : 22, weight: .heavy, design: .rounded))
-                        Spacer(minLength: 4)
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .foregroundStyle(.white)
+                        Text(event.startDate.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).day().month(.abbreviated)))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.82))
+                            .lineLimit(1)
+                    }
+                } else {
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text(event.countdownLabel)
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Spacer(minLength: 0)
                         Text(event.startDate.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).day().month(.abbreviated)))
                             .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                     .foregroundStyle(.white)
-                } else {
-                    Spacer(minLength: 0)
-                    Text("Brak nadchodzących wydarzeń")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(.white)
-                    Text("Otwórz LibrusSync i zsynchronizuj Librusa.")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.82))
-                    Spacer(minLength: 0)
                 }
+            } else {
+                Spacer(minLength: 0)
+                Text("Brak nadchodzących wydarzeń")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Otwórz LibrusSync i zsynchronizuj Librusa.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
-            .padding(14)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(family == .systemSmall ? 12 : 16)
     }
-
     private var circularLockScreenView: some View {
         VStack(spacing: 1) {
             Image(systemName: nextEvent?.isAssessment == true ? "pencil.and.list.clipboard" : "calendar")
