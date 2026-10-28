@@ -248,9 +248,10 @@ enum LocalNotificationService {
         }
 
         if daysBefore == 0 {
-            // On the same day, remind at 07:00, but do not schedule a late notification
-            // for an event that has already started.
-            return calendar.date(bySettingHour: 7, minute: 0, second: 0, of: original)
+            // On the same day, remind at 07:00 only if that is before the event starts.
+            guard let reminder = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: original),
+                  reminder < item.startDate else { return nil }
+            return reminder
         }
         // Preserve the event's local wall-clock time on the selected day.
         let time = calendar.dateComponents([.hour, .minute, .second], from: item.startDate)
