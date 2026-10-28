@@ -32,6 +32,14 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Verify WidgetKit build settings
+        run: |
+          set -euo pipefail
+          xcodebuild -project LibrusSync.xcodeproj -target LibrusSyncWidget -configuration Debug -sdk iphoneos -showBuildSettings > /tmp/widget-build-settings.txt
+          grep -E '^[[:space:]]*(PRODUCT_BUNDLE_IDENTIFIER|GENERATE_INFOPLIST_FILE|INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier|CODE_SIGN_ENTITLEMENTS)[[:space:]]*=' /tmp/widget-build-settings.txt
+          grep -q 'GENERATE_INFOPLIST_FILE = YES' /tmp/widget-build-settings.txt
+          grep -q 'com.apple.widgetkit-extension' /tmp/widget-build-settings.txt
+
       - name: Build for iPhone (unsigned)
         run: |
           set -o pipefail
@@ -46,6 +54,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
+
+      - name: Verify embedded WidgetKit metadata
+        run: |
+          set -euo pipefail
+          WIDGET="build/DeviceDerivedData/Build/Products/Debug-iphoneos/LibrusSync.app/PlugIns/LibrusSyncWidget.appex"
+          test -d "$WIDGET"
+          test -f "$WIDGET/Info.plist"
+          /usr/bin/plutil -lint "$WIDGET/Info.plist"
+          POINT=$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$WIDGET/Info.plist")
+          test "$POINT" = "com.apple.widgetkit-extension"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$WIDGET/Info.plist"
 
       - name: Package unsigned IPA
         run: |
