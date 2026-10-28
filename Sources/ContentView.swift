@@ -19,48 +19,10 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            NavigationStack {
-                pageScrollView {
-                    topBar
-                    heroCard
-                    countdownCard
-                    syncControl
-                }
-            }
-            .tabItem {
-                Label("Start", systemImage: "house.fill")
-            }
-
-            NavigationStack {
-                pageScrollView {
-                    upcomingSection
-                }
-            }
-            .tabItem {
-                Label("Wydarzenia", systemImage: "calendar")
-            }
-
-            NavigationStack {
-                pageScrollView {
-                    reminderSettings
-                    notificationTestControl
-                    reminderInfoCard
-                }
-            }
-            .tabItem {
-                Label("Przypomnienia", systemImage: "bell.badge.fill")
-            }
-
-            NavigationStack {
-                pageScrollView {
-                    integrationsSection
-                    backgroundNote
-                    footer
-                }
-            }
-            .tabItem {
-                Label("Ustawienia", systemImage: "gearshape.fill")
-            }
+            homeTab
+            eventsTab
+            remindersTab
+            settingsTab
         }
         .tint(violet)
         .onChange(of: scenePhase) { _, phase in
@@ -92,6 +54,57 @@ struct ContentView: View {
         }
         .task {
             await syncManager.requestPermissionsOnLaunch()
+        }
+    }
+
+    private var homeTab: some View {
+        NavigationStack {
+            pageScrollView {
+                topBar
+                heroCard
+                countdownCard
+                syncControl
+            }
+        }
+        .tabItem {
+            Label("Start", systemImage: "house.fill")
+        }
+    }
+
+    private var eventsTab: some View {
+        NavigationStack {
+            pageScrollView {
+                upcomingSection
+            }
+        }
+        .tabItem {
+            Label("Wydarzenia", systemImage: "calendar")
+        }
+    }
+
+    private var remindersTab: some View {
+        NavigationStack {
+            pageScrollView {
+                reminderSettings
+                notificationTestControl
+                reminderInfoCard
+            }
+        }
+        .tabItem {
+            Label("Przypomnienia", systemImage: "bell.badge.fill")
+        }
+    }
+
+    private var settingsTab: some View {
+        NavigationStack {
+            pageScrollView {
+                integrationsSection
+                backgroundNote
+                footer
+            }
+        }
+        .tabItem {
+            Label("Ustawienia", systemImage: "gearshape.fill")
         }
     }
 
