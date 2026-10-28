@@ -130,7 +130,49 @@ enum LocalNotificationService {
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
-        try? await UNUserNotificationCenter.current().add(request)
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("LibrusSync: nie udało się zaplanować powiadomienia: \\(error.localizedDescription)")
+        }
+    }
+
+    /// Schedules a real local notification so the user can verify iOS permissions
+    /// and the installed IPA's notification behavior without waiting for a new event.
+    static func sendTestNotification() async -> (success: Bool, message: String) {
+        configure()
+        let center = UNUserNotificationCenter.current()
+        var settings = await center.notificationSettings()
+
+        if settings.authorizationStatus == .notDetermined {
+            let granted = await requestAuthorization()
+            settings = await center.notificationSettings()
+            if !granted && settings.authorizationStatus != .provisional {
+                return (false, "Nie przyznano zgody na powiadomienia. Włącz je w Ustawieniach iPhone’a → Powiadomienia → LibrusSync.")
+            }
+        }
+
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            return (false, "Powiadomienia są zablokowane. Otwórz Ustawienia iPhone’a → Powiadomienia → LibrusSync i włącz „Dopuszczaj powiadomienia”.")
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "LibrusSync działa!"
+        content.body = "To jest testowe powiadomienie. Powiadomienia są poprawnie skonfigurowane."
+        content.sound = .default
+        content.threadIdentifier = "librussync-test"
+        let request = UNNotificationRequest(
+            identifier: "librussync-test-\\(UUID().uuidString)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        )
+
+        do {
+            try await center.add(request)
+            return (true, "Testowe powiadomienie zaplanowano. Powinno pojawić się za około 2 sekundy. Jeśli aplikacja jest otwarta, wyświetli się jako baner.")
+        } catch {
+            return (false, "iOS nie przyjął powiadomienia: \\(error.localizedDescription)")
+        }
     }
 }
 
