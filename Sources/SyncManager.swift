@@ -27,7 +27,7 @@ final class SyncManager: ObservableObject {
             // Filter cached data too, so old entries never appear as "upcoming".
             recentEvents = Array(
                 decoded
-                    .filter { $0.endDate >= Date() }
+                    .filter { $0.isUpcoming }
                     .sorted { $0.startDate < $1.startDate }
                     .prefix(30)
             )
