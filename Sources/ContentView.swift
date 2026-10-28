@@ -462,7 +462,7 @@ struct ContentView: View {
                     if let message = syncManager.errorMessage {
                         Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     } else {
-                        Text(syncManager.lastSync.map { "Ostatnie sprawdzenie: ($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Połącz konto i uruchom pierwszą synchronizację.")
+                        Text(syncManager.lastSync.map { "Ostatnie sprawdzenie: \\($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Połącz konto i uruchom pierwszą synchronizację.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
