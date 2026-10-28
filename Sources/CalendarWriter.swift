@@ -150,45 +150,57 @@ enum LocalNotificationService {
         }
     }
 
-    /// Schedules one local reminder two days before each upcoming event.
-    /// iOS allows a limited number of pending local notifications, so we reserve
-    /// the slots for the 60 soonest events. Existing reminder requests are replaced
-    /// each sync so changed dates/titles do not leave stale alerts behind.
-    static func scheduleTwoDayReminders(for events: [AgendaEvent]) async {
+    /// Refreshes local reminders according to the user's preferences.
+    /// iOS limits pending local notifications, so only the 60 soonest alerts are kept.
+    static func scheduleReminders(for events: [AgendaEvent]) async {
         guard await requestAuthorization() else { return }
 
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
-        let reminderPrefix = "librussync-reminder-"
+        let prefix = "librussync-reminder-"
         center.removePendingNotificationRequests(
-            withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(reminderPrefix) }
+            withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
         )
 
-        let upcoming = events
-            .filter { item in
-                item.isUpcoming && (reminderDate(for: item) ?? .distantPast) > Date()
+        let defaults = UserDefaults.standard
+        let options: [(key: String, daysBefore: Int, label: String, defaultValue: Bool)] = [
+            ("reminderWeekBefore", 7, "Za 7 dni", false),
+            ("reminderTwoDays", 2, "Za 2 dni", true),
+            ("reminderSameDay", 0, "Dzisiaj", false)
+        ]
+        let enabled = options.filter { option in
+            (defaults.object(forKey: option.key) as? Bool) ?? option.defaultValue
+        }
+        guard !enabled.isEmpty else { return }
+
+        let now = Date()
+        let alerts = events
+            .filter { $0.isUpcoming }
+            .flatMap { item in
+                enabled.compactMap { option -> (item: AgendaEvent, option: (key: String, daysBefore: Int, label: String, defaultValue: Bool), fireDate: Date)? in
+                    guard let fireDate = reminderDate(for: item, daysBefore: option.daysBefore),
+                          fireDate > now else { return nil }
+                    return (item, option, fireDate)
+                }
             }
-            .sorted { $0.startDate < $1.startDate }
+            .sorted { $0.fireDate < $1.fireDate }
             .prefix(60)
 
-        for item in upcoming {
-            guard let reminderDate = reminderDate(for: item), reminderDate > Date() else { continue }
-
+        for alert in alerts {
             let content = UNMutableNotificationContent()
-            content.title = "Za 2 dni: \(item.title)"
-            content.body = notificationDateDescription(for: item)
+            content.title = "\(alert.option.label): \(alert.item.title)"
+            content.body = notificationDateDescription(for: alert.item)
             content.sound = .default
             content.threadIdentifier = "librussync-reminders"
 
             let components = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute, .second],
-                from: reminderDate
+                from: alert.fireDate
             )
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let request = UNNotificationRequest(
-                identifier: reminderPrefix + item.uid,
+                identifier: "\(prefix)\(alert.item.uid)-\(alert.option.daysBefore)",
                 content: content,
-                trigger: trigger
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
             do {
                 try await center.add(request)
@@ -198,41 +210,28 @@ enum LocalNotificationService {
         }
     }
 
-    private static func reminderDate(for item: AgendaEvent) -> Date? {
+    private static func reminderDate(for item: AgendaEvent, daysBefore: Int) -> Date? {
         let calendar = Calendar.current
-        guard var date = calendar.date(byAdding: .day, value: -2, to: item.startDate) else { return nil }
+        guard let original = calendar.date(byAdding: .day, value: -daysBefore, to: item.startDate) else { return nil }
 
-        // All-day tasks usually start at midnight; notify at 09:00 two days before
-        // instead of waking the user in the middle of the night.
         if item.isAllDay {
-            date = calendar.date(
-                bySettingHour: 9,
-                minute: 0,
-                second: 0,
-                of: date
-            ) ?? date
-        }
-        return date
-    }
-
-    private static func notificationDateDescription(for item: AgendaEvent) -> String {
-        let locale = Locale(identifier: "pl_PL")
-        let date = item.startDate.formatted(
-            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year()
-        )
-        if item.isAllDay {
-            return "\(date) • cały dzień"
+            // All-day reminders are delivered at 09:00 local time.
+            return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: original)
         }
 
-        let start = item.startDate.formatted(.dateTime.locale(locale).hour().minute())
-        if Calendar.current.isDate(item.startDate, inSameDayAs: item.endDate) {
-            let end = item.endDate.formatted(.dateTime.locale(locale).hour().minute())
-            return "\(date) • \(start)–\(end)"
+        if daysBefore == 0 {
+            // On the same day, remind at 07:00, but do not schedule a late notification
+            // for an event that has already started.
+            return calendar.date(bySettingHour: 7, minute: 0, second: 0, of: original)
         }
-        let endDate = item.endDate.formatted(
-            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year().hour().minute()
+        // Preserve the event's local wall-clock time on the selected day.
+        let time = calendar.dateComponents([.hour, .minute, .second], from: item.startDate)
+        return calendar.date(
+            bySettingHour: time.hour ?? 8,
+            minute: time.minute ?? 0,
+            second: time.second ?? 0,
+            of: original
         )
-        return "\(date) • od \(start) do \(endDate)"
     }
 
     /// Schedules a real local notification so the user can verify iOS permissions
