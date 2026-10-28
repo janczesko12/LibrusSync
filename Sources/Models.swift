@@ -17,7 +17,29 @@ struct AgendaEvent: Identifiable, Codable, Equatable {
         if isAllDay {
             return startDate >= Calendar.current.startOfDay(for: now)
         }
-        return startDate >= now
+        return endDate >= now
+    }
+
+    /// Best-effort classification based on the text Librus exposes for an entry.
+    var isAssessment: Bool {
+        let text = "\(title) \(notes)"
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+            .lowercased()
+        let markers = ["sprawdzian", "kartkowka", "praca klasowa", "test", "egzamin", "spr."]
+        return markers.contains { text.contains($0) }
+    }
+
+    var countdownLabel: String {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let today = calendar.startOfDay(for: Date())
+        let days = calendar.dateComponents([.day], from: today, to: start).day ?? 0
+        switch days {
+        case ..<0: return "Trwa lub minęło"
+        case 0: return "Dzisiaj"
+        case 1: return "Jutro"
+        default: return "Za \(days) dni"
+        }
     }
 
     init(uid: String, title: String, startDate: Date, endDate: Date, notes: String, isAllDay: Bool = false) {
