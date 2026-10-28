@@ -150,6 +150,89 @@ enum LocalNotificationService {
         }
     }
 
+    /// Schedules one local reminder two days before each upcoming event.
+    /// iOS allows a limited number of pending local notifications, so we reserve
+    /// the slots for the 60 soonest events. Existing reminder requests are replaced
+    /// each sync so changed dates/titles do not leave stale alerts behind.
+    static func scheduleTwoDayReminders(for events: [AgendaEvent]) async {
+        guard await requestAuthorization() else { return }
+
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        let reminderPrefix = "librussync-reminder-"
+        center.removePendingNotificationRequests(
+            withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(reminderPrefix) }
+        )
+
+        let upcoming = events
+            .filter { $0.endDate >= Date() }
+            .sorted { $0.startDate < $1.startDate }
+            .prefix(60)
+
+        for item in upcoming {
+            guard let reminderDate = reminderDate(for: item), reminderDate > Date() else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Za 2 dni: \(item.title)"
+            content.body = notificationDateDescription(for: item)
+            content.sound = .default
+            content.threadIdentifier = "librussync-reminders"
+
+            let components = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: reminderDate
+            )
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: reminderPrefix + item.uid,
+                content: content,
+                trigger: trigger
+            )
+            do {
+                try await center.add(request)
+            } catch {
+                print("LibrusSync: nie udało się zaplanować przypomnienia: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func reminderDate(for item: AgendaEvent) -> Date? {
+        let calendar = Calendar.current
+        guard var date = calendar.date(byAdding: .day, value: -2, to: item.startDate) else { return nil }
+
+        // All-day tasks usually start at midnight; notify at 09:00 two days before
+        // instead of waking the user in the middle of the night.
+        if item.isAllDay {
+            date = calendar.date(
+                bySettingHour: 9,
+                minute: 0,
+                second: 0,
+                of: date
+            ) ?? date
+        }
+        return date
+    }
+
+    private static func notificationDateDescription(for item: AgendaEvent) -> String {
+        let locale = Locale(identifier: "pl_PL")
+        let date = item.startDate.formatted(
+            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year()
+        )
+        if item.isAllDay {
+            return "\(date) • cały dzień"
+        }
+
+        let start = item.startDate.formatted(.dateTime.locale(locale).hour().minute())
+        if Calendar.current.isDate(item.startDate, inSameDayAs: item.endDate) {
+            let end = item.endDate.formatted(.dateTime.locale(locale).hour().minute())
+            return "\(date) • \(start)–\(end)"
+        }
+        let endDate = item.endDate.formatted(
+            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year().hour().minute()
+        )
+        return "\(date) • od \(start) do \(endDate)"
+    }
+
     /// Schedules a real local notification so the user can verify iOS permissions
     /// and the installed IPA's notification behavior without waiting for a new event.
     static func sendTestNotification() async -> (success: Bool, message: String) {
