@@ -72,6 +72,10 @@ final class LibrusClient {
     }
 
     private func performLogin(login: String, password: String) async throws {
+        // Usuń stare ciasteczka przed nowym logowaniem. Wygasły oauth_token może
+        // pozostać w magazynie i powodować błędy mimo poprawnego ponownego logowania.
+        clearSession()
+
         var request = URLRequest(url: portalLogin)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
@@ -158,10 +162,38 @@ final class LibrusClient {
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
         request.setValue("https://synergia.librus.pl/", forHTTPHeaderField: "Referer")
         let (data, response) = try await send(request)
-        if response.statusCode == 401 || response.statusCode == 403 { throw LibrusClientError.sessionExpired }
-        guard (200..<300).contains(response.statusCode),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+
+        // Przekierowania są obsługiwane ręcznie. Wygasła sesja Librusa często
+        // zwraca 302 do strony HTML logowania, co wcześniej dawało tylko serverResponse
+        // i uniemożliwiało uruchomienie automatycznego ponownego logowania.
+        if response.statusCode == 401 || response.statusCode == 403 ||
+            (300..<400).contains(response.statusCode) {
+            throw LibrusClientError.sessionExpired
+        }
+
+        guard (200..<300).contains(response.statusCode) else {
             throw LibrusClientError.serverResponse
+        }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            let body = String(decoding: data.prefix(4096), as: UTF8.self).lowercased()
+            let contentType = response.value(forHTTPHeaderField: "Content-Type")?.lowercased() ?? ""
+            if contentType.contains("text/html") || body.contains("<html") ||
+                body.contains("loguj/portal") || body.contains("oauth/authorization") {
+                throw LibrusClientError.sessionExpired
+            }
+            throw LibrusClientError.serverResponse
+        }
+
+        // Czasem API zwraca błąd autoryzacji jako JSON przy statusie HTTP 200.
+        if let code = json["status"] as? Int, [401, 403].contains(code) {
+            throw LibrusClientError.sessionExpired
+        }
+        if endpoint == "HomeWorks" && json["HomeWorks"] == nil {
+            throw LibrusClientError.sessionExpired
+        }
+        if endpoint == "Me" && json["Me"] == nil &&
+            json["User"] == nil && json["Account"] == nil {
+            throw LibrusClientError.sessionExpired
         }
         return json
     }
