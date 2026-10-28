@@ -207,7 +207,7 @@ final class SyncManager: ObservableObject {
             recentEvents = visibleEvents
 
             // Share the same, date-filtered list with the home-screen widget.
-            WidgetDataStore.save(events: visibleEvents)
+            widgetDataStatus = WidgetDataStore.save(events: visibleEvents)
 
             // Rebuild reminders so changed dates and deleted events cannot keep stale alerts.
             await LocalNotificationService.scheduleReminders(for: upcomingEvents)
