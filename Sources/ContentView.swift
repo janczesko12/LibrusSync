@@ -206,7 +206,7 @@ struct ContentView: View {
             }
             .padding(.horizontal, 14)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            Text("Przypomnienia są lokalne. Po zmianie ustawień aplikacja przeliczy zaplanowane alerty podczas synchronizacji.")
+            Text("Przypomnienia są lokalne. Po zmianie ustawień zaplanowane alerty zostaną przeliczone automatycznie.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
