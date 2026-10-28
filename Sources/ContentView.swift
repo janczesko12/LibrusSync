@@ -18,49 +18,73 @@ struct ContentView: View {
     private let lilac = Color(red: 0.63, green: 0.48, blue: 0.98)
 
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
+        TabView {
+            NavigationStack {
+                pageScrollView {
                     topBar
                     heroCard
                     countdownCard
-                    integrationsSection
-                    reminderSettings
                     syncControl
+                }
+            }
+            .tabItem {
+                Label("Start", systemImage: "house.fill")
+            }
+
+            NavigationStack {
+                pageScrollView {
                     upcomingSection
+                }
+            }
+            .tabItem {
+                Label("Wydarzenia", systemImage: "calendar")
+            }
+
+            NavigationStack {
+                pageScrollView {
+                    reminderSettings
+                    notificationTestControl
+                    reminderInfoCard
+                }
+            }
+            .tabItem {
+                Label("Przypomnienia", systemImage: "bell.badge.fill")
+            }
+
+            NavigationStack {
+                pageScrollView {
+                    integrationsSection
                     backgroundNote
                     footer
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 10)
-                .padding(.bottom, 30)
             }
-            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .onChange(of: scenePhase) { _, phase in
-                switch phase {
-                case .active:
-                    Task { await syncManager.appBecameActive() }
-                case .background:
-                    BackgroundRefreshScheduler.shared.scheduleNext()
-                case .inactive:
-                    break
-                @unknown default:
-                    break
-                }
-            }
-            .confirmationDialog("Odłączyć konto Librus?", isPresented: $showDisconnectConfirmation, titleVisibility: .visible) {
-                Button("Odłącz konto", role: .destructive) {
-                    syncManager.disconnectLibrus()
-                    login = ""
-                    password = ""
-                }
-                Button("Anuluj", role: .cancel) {}
-            } message: {
-                Text("Dane logowania i lokalna sesja zostaną usunięte z tego urządzenia.")
+            .tabItem {
+                Label("Ustawienia", systemImage: "gearshape.fill")
             }
         }
         .tint(violet)
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                Task { await syncManager.appBecameActive() }
+            case .background:
+                BackgroundRefreshScheduler.shared.scheduleNext()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
+        }
+        .confirmationDialog("Odłączyć konto Librus?", isPresented: $showDisconnectConfirmation, titleVisibility: .visible) {
+            Button("Odłącz konto", role: .destructive) {
+                syncManager.disconnectLibrus()
+                login = ""
+                password = ""
+            }
+            Button("Anuluj", role: .cancel) {}
+        } message: {
+            Text("Dane logowania i lokalna sesja zostaną usunięte z tego urządzenia.")
+        }
         .alert(notificationTestTitle, isPresented: $showNotificationTestAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -69,6 +93,43 @@ struct ContentView: View {
         .task {
             await syncManager.requestPermissionsOnLaunch()
         }
+    }
+
+    private func pageScrollView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                content()
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 30)
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var reminderInfoCard: some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: "clock.badge.checkmark")
+                .font(.title3)
+                .foregroundStyle(violet)
+                .frame(width: 38, height: 38)
+                .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Przypomnienia na urządzeniu")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                Text("Alerty są planowane lokalnie. iOS może ograniczać odświeżanie w tle, ale zaplanowane powiadomienia mogą pojawić się bez otwierania aplikacji.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(violet.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var topBar: some View {
@@ -377,36 +438,8 @@ struct ContentView: View {
                 .foregroundStyle(.white).padding(17)
                 .background(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.23), Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
             }
-            .buttonStyle(.plain).disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
-
-            Button {
-                Task {
-                    let result = await LocalNotificationService.sendTestNotification()
-                    notificationTestTitle = result.success ? "Test zaplanowany" : "Powiadomienia wymagają uwagi"
-                    notificationTestMessage = result.message
-                    showNotificationTestAlert = true
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "bell.badge.fill")
-                        .font(.headline)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Testuj powiadomienia")
-                            .font(.subheadline.weight(.bold))
-                        Text("Wyślij testowy alert na tego iPhone’a")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
-                .foregroundStyle(ink)
-                .padding(14)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
             .buttonStyle(.plain)
+            .disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: syncManager.errorMessage == nil ? "info.circle.fill" : "exclamationmark.triangle.fill")
@@ -416,14 +449,49 @@ struct ContentView: View {
                     if let message = syncManager.errorMessage {
                         Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     } else {
-                        Text(syncManager.lastSync.map { "Ostatnie sprawdzenie: \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Połącz konto i uruchom pierwszą synchronizację.")
+                        Text(syncManager.lastSync.map { "Ostatnie sprawdzenie: ($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Połącz konto i uruchom pierwszą synchronizację.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 3)
+            .padding(.top, 2)
         }
+    }
+
+    private var notificationTestControl: some View {
+        Button {
+            Task {
+                let result = await LocalNotificationService.sendTestNotification()
+                notificationTestTitle = result.success ? "Test zaplanowany" : "Powiadomienia wymagają uwagi"
+                notificationTestMessage = result.message
+                showNotificationTestAlert = true
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.headline)
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Testuj powiadomienia")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(ink)
+                    Text("Wyślij testowy alert na tego iPhone’a")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(15)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var upcomingSection: some View {
