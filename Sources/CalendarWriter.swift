@@ -75,6 +75,34 @@ final class CalendarWriter: ObservableObject {
         try store.save(event, span: .thisEvent, commit: true)
     }
 
+    /// Removes only events previously written by LibrusSync that have vanished
+    /// from a non-empty, successfully fetched Librus snapshot.
+    func removeSyncedEvents(notIn liveUIDs: Set<String>) throws -> Int {
+        guard !liveUIDs.isEmpty else { return 0 }
+        let calendars = store.calendars(for: .event)
+        guard !calendars.isEmpty else { return 0 }
+
+        let start = Calendar.current.date(byAdding: .year, value: -5, to: Date()) ?? .distantPast
+        let end = Calendar.current.date(byAdding: .year, value: 10, to: Date()) ?? .distantFuture
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: calendars)
+        let markerPrefix = "LibrusSyncUID:"
+        let staleEvents = store.events(matching: predicate).filter { event in
+            guard let notes = event.notes,
+                  let range = notes.range(of: markerPrefix) else { return false }
+            let markerValue = notes[range.upperBound...]
+                .split(whereSeparator: \.isNewline)
+                .first
+                .map(String.init) ?? ""
+            return !markerValue.isEmpty && !liveUIDs.contains(markerValue)
+        }
+
+        for event in staleEvents {
+            try store.remove(event, span: .thisEvent, commit: false)
+        }
+        if !staleEvents.isEmpty { try store.commit() }
+        return staleEvents.count
+    }
+
     private func targetCalendar() throws -> EKCalendar {
         if let id = selectedCalendarIdentifier,
            let choice = store.calendar(withIdentifier: id), choice.allowsContentModifications { return choice }
