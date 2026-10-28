@@ -470,6 +470,17 @@ struct ContentView: View {
             }
             .padding(.horizontal, 3)
             .padding(.top, 2)
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: syncManager.widgetDataStatus.contains("brak dostępu") ? "exclamationmark.triangle.fill" : "rectangle.topthird.inset.filled")
+                    .foregroundStyle(syncManager.widgetDataStatus.contains("brak dostępu") ? Color.orange : violet)
+                Text(syncManager.widgetDataStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 3)
         }
     }
 
