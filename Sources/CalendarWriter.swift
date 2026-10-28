@@ -165,7 +165,9 @@ enum LocalNotificationService {
         )
 
         let upcoming = events
-            .filter { $0.endDate >= Date() }
+            .filter { item in
+                item.isUpcoming && (reminderDate(for: item) ?? .distantPast) > Date()
+            }
             .sorted { $0.startDate < $1.startDate }
             .prefix(60)
 
