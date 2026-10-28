@@ -196,8 +196,10 @@
       CODE_SIGN_ENTITLEMENTS = Sources/LibrusSyncWidget.entitlements;
       CODE_SIGN_STYLE = Automatic;
       CURRENT_PROJECT_VERSION = 1;
-      GENERATE_INFOPLIST_FILE = NO;
-      INFOPLIST_FILE = Sources/WidgetInfo.plist;
+      GENERATE_INFOPLIST_FILE = YES;
+      INFOPLIST_KEY_CFBundleDisplayName = LibrusSyncWidget;
+      INFOPLIST_KEY_CFBundlePackageType = "XPC!";
+      INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
       IPHONEOS_DEPLOYMENT_TARGET = 17.0;
       MARKETING_VERSION = 1.0;
       PRODUCT_BUNDLE_IDENTIFIER = pl.novydev.librussync.widget;
@@ -207,13 +209,15 @@
       SWIFT_VERSION = 5.0;
       TARGETED_DEVICE_FAMILY = "1,2";
       APPLICATION_EXTENSION_API_ONLY = YES;
-    }; name = "Debug widget"; };
+    }; name = Debug; };
     B80000000000000000000002 /* Release widget */ = {isa = XCBuildConfiguration; buildSettings = {
       CODE_SIGN_ENTITLEMENTS = Sources/LibrusSyncWidget.entitlements;
       CODE_SIGN_STYLE = Automatic;
       CURRENT_PROJECT_VERSION = 1;
-      GENERATE_INFOPLIST_FILE = NO;
-      INFOPLIST_FILE = Sources/WidgetInfo.plist;
+      GENERATE_INFOPLIST_FILE = YES;
+      INFOPLIST_KEY_CFBundleDisplayName = LibrusSyncWidget;
+      INFOPLIST_KEY_CFBundlePackageType = "XPC!";
+      INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
       IPHONEOS_DEPLOYMENT_TARGET = 17.0;
       MARKETING_VERSION = 1.0;
       PRODUCT_BUNDLE_IDENTIFIER = pl.novydev.librussync.widget;
@@ -223,7 +227,7 @@
       SWIFT_VERSION = 5.0;
       TARGETED_DEVICE_FAMILY = "1,2";
       APPLICATION_EXTENSION_API_ONLY = YES;
-    }; name = "Release widget"; };
+    }; name = Release; };
   };
   rootObject = A30000000000000000000003 /* Project object */;
 }
