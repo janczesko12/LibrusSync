@@ -10,6 +10,16 @@ struct AgendaEvent: Identifiable, Codable, Equatable {
 
     var id: String { uid }
 
+    /// Upcoming timed events start in the future. All-day events scheduled for today
+    /// remain visible until the local day ends.
+    var isUpcoming: Bool {
+        let now = Date()
+        if isAllDay {
+            return startDate >= Calendar.current.startOfDay(for: now)
+        }
+        return startDate >= now
+    }
+
     init(uid: String, title: String, startDate: Date, endDate: Date, notes: String, isAllDay: Bool = false) {
         self.uid = uid
         self.title = title
