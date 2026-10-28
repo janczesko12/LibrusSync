@@ -6,6 +6,9 @@ struct ContentView: View {
     @State private var login = KeychainStore.read(key: "librusLogin") ?? ""
     @State private var password = KeychainStore.read(key: "librusPassword") ?? ""
     @State private var showDisconnectConfirmation = false
+    @State private var showNotificationTestAlert = false
+    @State private var notificationTestTitle = "Test powiadomień"
+    @State private var notificationTestMessage = ""
 
     private let ink = Color(uiColor: .label)
     private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
@@ -53,6 +56,11 @@ struct ContentView: View {
             }
         }
         .tint(violet)
+        .alert(notificationTestTitle, isPresented: $showNotificationTestAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(notificationTestMessage)
+        }
         .task {
             await syncManager.requestPermissionsOnLaunch()
         }
@@ -251,6 +259,35 @@ struct ContentView: View {
                 .background(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.23), Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
             }
             .buttonStyle(.plain).disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
+
+            Button {
+                Task {
+                    let result = await LocalNotificationService.sendTestNotification()
+                    notificationTestTitle = result.success ? "Test zaplanowany" : "Powiadomienia wymagają uwagi"
+                    notificationTestMessage = result.message
+                    showNotificationTestAlert = true
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.headline)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Testuj powiadomienia")
+                            .font(.subheadline.weight(.bold))
+                        Text("Wyślij testowy alert na tego iPhone’a")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(ink)
+                .padding(14)
+                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: syncManager.errorMessage == nil ? "info.circle.fill" : "exclamationmark.triangle.fill")
