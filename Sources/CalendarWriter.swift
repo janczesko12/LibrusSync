@@ -133,7 +133,7 @@ enum LocalNotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
-            print("LibrusSync: nie udało się zaplanować powiadomienia: \\(error.localizedDescription)")
+            print("LibrusSync: nie udało się zaplanować powiadomienia: \(error.localizedDescription)")
         }
     }
 
@@ -162,7 +162,7 @@ enum LocalNotificationService {
         content.sound = .default
         content.threadIdentifier = "librussync-test"
         let request = UNNotificationRequest(
-            identifier: "librussync-test-\\(UUID().uuidString)",
+            identifier: "librussync-test-\(UUID().uuidString)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
         )
@@ -171,7 +171,7 @@ enum LocalNotificationService {
             try await center.add(request)
             return (true, "Testowe powiadomienie zaplanowano. Powinno pojawić się za około 2 sekundy. Jeśli aplikacja jest otwarta, wyświetli się jako baner.")
         } catch {
-            return (false, "iOS nie przyjął powiadomienia: \\(error.localizedDescription)")
+            return (false, "iOS nie przyjął powiadomienia: \(error.localizedDescription)")
         }
     }
 }
