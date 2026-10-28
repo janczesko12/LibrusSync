@@ -167,9 +167,11 @@ struct LibrusSyncUpcomingWidgetView: View {
         }
     }
 
+    @ViewBuilder
     private var inlineLockScreenView: some View {
         if let event = nextEvent {
-            Text("\(event.isAssessment ? "Sprawdzian" : "Wydarzenie"): \(event.title) — \(event.countdownLabel)")
+            let category = event.isAssessment ? "Sprawdzian" : "Wydarzenie"
+            Text("\(category): \(event.title) — \(event.countdownLabel)")
         } else {
             Text("LibrusSync: brak nadchodzących wydarzeń")
         }
