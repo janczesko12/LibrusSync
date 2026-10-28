@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var showNotificationTestAlert = false
     @State private var notificationTestTitle = "Test powiadomień"
     @State private var notificationTestMessage = ""
+    @AppStorage("reminderWeekBefore") private var reminderWeekBefore = false
+    @AppStorage("reminderTwoDays") private var reminderTwoDays = true
+    @AppStorage("reminderSameDay") private var reminderSameDay = false
 
     private let ink = Color(uiColor: .label)
     private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
@@ -20,7 +23,9 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     topBar
                     heroCard
+                    countdownCard
                     integrationsSection
+                    reminderSettings
                     syncControl
                     upcomingSection
                     backgroundNote
@@ -119,6 +124,120 @@ struct ContentView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: violet.opacity(0.2), radius: 18, x: 0, y: 9)
+    }
+
+    private var countdownCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "hourglass")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Odliczanie do sprawdzianu")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(ink)
+                    Text("Na podstawie wpisów wykrytych w Librusie")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if let event = nextAssessment {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(event.title)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(ink)
+                            .lineLimit(2)
+                        Text("\(event.dateLabel) · \(event.timeLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 6)
+                    Text(event.countdownLabel)
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(LinearGradient(colors: [violet, lilac], startPoint: .leading, endPoint: .trailing), in: Capsule())
+                }
+            } else {
+                Text("Gdy LibrusSync wykryje wpis opisany jako sprawdzian, kartkówka, test lub praca klasowa, zobaczysz tutaj odliczanie.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var nextAssessment: AgendaEvent? {
+        syncManager.recentEvents.first(where: { $0.isAssessment })
+    }
+
+    private var reminderSettings: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeading("Przypomnienia", subtitle: "Wybierz, kiedy iPhone ma Ci przypominać")
+            VStack(spacing: 0) {
+                reminderToggle(
+                    title: "Tydzień wcześniej",
+                    subtitle: "7 dni przed wydarzeniem",
+                    symbol: "calendar",
+                    isOn: $reminderWeekBefore
+                )
+                Divider().padding(.leading, 56)
+                reminderToggle(
+                    title: "Dwa dni wcześniej",
+                    subtitle: "Domyślne przypomnienie",
+                    symbol: "calendar.badge.clock",
+                    isOn: $reminderTwoDays
+                )
+                Divider().padding(.leading, 56)
+                reminderToggle(
+                    title: "W dniu wydarzenia",
+                    subtitle: "O 7:00 lub o 9:00 dla całodniowych",
+                    symbol: "bell.badge",
+                    isOn: $reminderSameDay
+                )
+            }
+            .padding(.horizontal, 14)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            Text("Przypomnienia są lokalne. Po zmianie ustawień aplikacja przeliczy zaplanowane alerty podczas synchronizacji.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .onChange(of: reminderWeekBefore) { _, _ in refreshReminderSchedule() }
+        .onChange(of: reminderTwoDays) { _, _ in refreshReminderSchedule() }
+        .onChange(of: reminderSameDay) { _, _ in refreshReminderSchedule() }
+    }
+
+    private func reminderToggle(title: String, subtitle: String, symbol: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(violet)
+                .frame(width: 34, height: 34)
+                .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(ink)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .tint(violet)
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func refreshReminderSchedule() {
+        guard let data = UserDefaults.standard.data(forKey: "recentAgendaEvents"),
+              let events = try? JSONDecoder().decode([AgendaEvent].self, from: data) else { return }
+        Task { await LocalNotificationService.scheduleReminders(for: events) }
     }
 
     private func metricPill(value: String, label: String) -> some View {
