@@ -49,7 +49,7 @@ final class SyncManager: ObservableObject {
             librusDisplayName = snapshot.displayName
             defaults.set(snapshot.displayName, forKey: "librusDisplayName")
             _ = await LocalNotificationService.requestAuthorization()
-            await apply(snapshot, initialConnection: true)
+            await apply(snapshot)
         } catch {
             errorMessage = error.localizedDescription
             status = "Nie udało się połączyć z Librusem"
@@ -74,7 +74,7 @@ final class SyncManager: ObservableObject {
             let snapshot = try await client.synchronize(login: login, password: password)
             librusDisplayName = snapshot.displayName
             defaults.set(snapshot.displayName, forKey: "librusDisplayName")
-            await apply(snapshot, initialConnection: false)
+            await apply(snapshot)
         } catch {
             errorMessage = error.localizedDescription
             status = "Synchronizacja nieudana"
@@ -151,7 +151,7 @@ final class SyncManager: ObservableObject {
         task.expirationHandler = { operation.cancel() }
     }
 
-    private func apply(_ snapshot: LibrusSnapshot, initialConnection: Bool) async {
+    private func apply(_ snapshot: LibrusSnapshot) async {
         do {
             try await writer.prepareAccessAndLoadCalendars()
             refreshCalendarState()
@@ -168,13 +168,13 @@ final class SyncManager: ObservableObject {
                         try writer.upsert(item)
                         next[item.uid] = fingerprint
                         changed += 1
-                        if !isFirstSync && !initialConnection { await LocalNotificationService.notify(for: item, updated: true) }
+                        await LocalNotificationService.notify(for: item, updated: true)
                     }
                 } else {
                     try writer.upsert(item)
                     next[item.uid] = fingerprint
                     added += 1
-                    if !isFirstSync && !initialConnection { await LocalNotificationService.notify(for: item, updated: false) }
+                    await LocalNotificationService.notify(for: item, updated: false)
                 }
             }
 
