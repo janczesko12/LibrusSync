@@ -121,8 +121,21 @@ enum LocalNotificationService {
         guard await requestAuthorization() else { return }
         let content = UNMutableNotificationContent()
         content.title = updated ? "Zmieniono wpis w terminarzu" : "Nowy wpis w terminarzu"
-        let date = item.startDate.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.short).day().month(.abbreviated).hour().minute())
-        content.body = "\(item.title) • \(date)"
+        let locale = Locale(identifier: "pl_PL")
+        let date = item.startDate.formatted(.dateTime.locale(locale).weekday(.wide).day().month(.wide).year())
+        let timing: String
+        if item.isAllDay {
+            timing = "cały dzień"
+        } else if Calendar.current.isDate(item.startDate, inSameDayAs: item.endDate) {
+            let start = item.startDate.formatted(.dateTime.locale(locale).hour().minute())
+            let end = item.endDate.formatted(.dateTime.locale(locale).hour().minute())
+            timing = "\(start)–\(end)"
+        } else {
+            let start = item.startDate.formatted(.dateTime.locale(locale).day().month(.wide).year().hour().minute())
+            let end = item.endDate.formatted(.dateTime.locale(locale).day().month(.wide).year().hour().minute())
+            timing = "\(start) – \(end)"
+        }
+        content.body = "\(item.title) • \(date), \(timing)"
         content.sound = .default
         content.threadIdentifier = "librussync-events"
         let request = UNNotificationRequest(
