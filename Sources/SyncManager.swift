@@ -163,53 +163,74 @@ final class SyncManager: ObservableObject {
         do {
             try await writer.prepareAccessAndLoadCalendars()
             refreshCalendarState()
+
             let prior = defaults.dictionary(forKey: "knownEventFingerprints") as? [String: String] ?? [:]
             let isFirstSync = !defaults.bool(forKey: "hasCompletedInitialImport")
             var next = prior
-            var added = 0
-            var changed = 0
+            var addedItems: [AgendaEvent] = []
+            var changedItems: [AgendaEvent] = []
 
+            // Write every changed/new event first. Only persist fingerprints after the
+            // complete pass succeeds, so a calendar error can be retried next time.
             for item in snapshot.events {
-                let fingerprint = item.fingerprint
                 if let old = prior[item.uid] {
-                    if old != fingerprint {
-                        try writer.upsert(item)
-                        next[item.uid] = fingerprint
-                        changed += 1
-                        await LocalNotificationService.notify(for: item, updated: true)
-                    }
+                    guard old != item.fingerprint else { continue }
+                    try writer.upsert(item)
+                    next[item.uid] = item.fingerprint
+                    changedItems.append(item)
                 } else {
                     try writer.upsert(item)
-                    next[item.uid] = fingerprint
-                    added += 1
-                    await LocalNotificationService.notify(for: item, updated: false)
+                    next[item.uid] = item.fingerprint
+                    addedItems.append(item)
                 }
+            }
+
+            // Reconcile deletes only when the API returned a non-empty valid snapshot.
+            // This avoids wiping the user's calendar if Librus unexpectedly returns no data.
+            if !snapshot.events.isEmpty {
+                let liveUIDs = Set(snapshot.events.map(\.uid))
+                _ = try writer.removeSyncedEvents(notIn: liveUIDs)
+                next = next.filter { liveUIDs.contains($0.key) }
             }
 
             defaults.set(next, forKey: "knownEventFingerprints")
             defaults.set(true, forKey: "hasCompletedInitialImport")
             defaults.set(Date(), forKey: "lastSuccessfulSync")
 
-            // "Najbliższe wydarzenia" means upcoming, sorted soonest-first;
-            // calculate against the device's current date every sync, never a fixed date.
             let upcomingEvents = snapshot.events
-                .filter { $0.endDate >= Date() }
+                .filter { $0.isUpcoming }
                 .sorted { $0.startDate < $1.startDate }
             let visibleEvents = Array(upcomingEvents.prefix(30))
-            defaults.set(try? JSONEncoder().encode(visibleEvents), forKey: "recentAgendaEvents")
+            if let encoded = try? JSONEncoder().encode(visibleEvents) {
+                defaults.set(encoded, forKey: "recentAgendaEvents")
+            }
             recentEvents = visibleEvents
 
-            // Refresh the two-day reminders after the calendar writes and snapshot are successful.
-            await LocalNotificationService.scheduleTwoDayReminders(for: upcomingEvents)
+            // Share the same, date-filtered list with the home-screen widget.
+            WidgetDataStore.save(events: visibleEvents)
+
+            // Rebuild reminders so changed dates and deleted events cannot keep stale alerts.
+            await LocalNotificationService.scheduleReminders(for: upcomingEvents)
+
+            // Avoid a notification storm when importing an existing account for the first time.
+            if !isFirstSync {
+                for item in addedItems {
+                    await LocalNotificationService.notify(for: item, updated: false)
+                }
+                for item in changedItems {
+                    await LocalNotificationService.notify(for: item, updated: true)
+                }
+            }
+
             lastSync = Date()
             if snapshot.events.isEmpty {
                 status = "Połączono • brak wydarzeń w terminarzu"
             } else if isFirstSync {
                 status = "Pierwsza synchronizacja ukończona"
-            } else if added == 0 && changed == 0 {
+            } else if addedItems.isEmpty && changedItems.isEmpty {
                 status = "Wszystko aktualne"
             } else {
-                status = "Nowe: \(added) • Zmienione: \(changed)"
+                status = "Nowe: \(addedItems.count) • Zmienione: \(changedItems.count)"
             }
             errorMessage = nil
             BackgroundRefreshScheduler.shared.scheduleNext()
