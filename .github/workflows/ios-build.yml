@@ -36,9 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -project LibrusSync.xcodeproj -target LibrusSyncWidget -configuration Debug -sdk iphoneos -showBuildSettings > /tmp/widget-build-settings.txt
-          grep -E '^[[:space:]]*(PRODUCT_BUNDLE_IDENTIFIER|GENERATE_INFOPLIST_FILE|INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier|CODE_SIGN_ENTITLEMENTS)[[:space:]]*=' /tmp/widget-build-settings.txt
-          grep -q 'GENERATE_INFOPLIST_FILE = YES' /tmp/widget-build-settings.txt
-          grep -q 'com.apple.widgetkit-extension' /tmp/widget-build-settings.txt
+          grep -E '^[[:space:]]*(PRODUCT_BUNDLE_IDENTIFIER|GENERATE_INFOPLIST_FILE|INFOPLIST_FILE|CODE_SIGN_ENTITLEMENTS)[[:space:]]*=' /tmp/widget-build-settings.txt
+          grep -q 'GENERATE_INFOPLIST_FILE = NO' /tmp/widget-build-settings.txt
+          grep -q 'INFOPLIST_FILE = Sources/WidgetInfo.plist' /tmp/widget-build-settings.txt
 
       - name: Build for iPhone (unsigned)
         run: |
