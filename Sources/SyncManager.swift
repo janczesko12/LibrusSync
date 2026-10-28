@@ -23,7 +23,15 @@ final class SyncManager: ObservableObject {
     private init() {
         lastSync = defaults.object(forKey: "lastSuccessfulSync") as? Date
         if let data = defaults.data(forKey: "recentAgendaEvents"),
-           let decoded = try? JSONDecoder().decode([AgendaEvent].self, from: data) { recentEvents = decoded }
+           let decoded = try? JSONDecoder().decode([AgendaEvent].self, from: data) {
+            // Filter cached data too, so old entries never appear as "upcoming".
+            recentEvents = Array(
+                decoded
+                    .filter { $0.endDate >= Date() }
+                    .sorted { $0.startDate < $1.startDate }
+                    .prefix(30)
+            )
+        }
         isLibrusConnected = KeychainStore.read(key: "librusLogin") != nil && KeychainStore.read(key: "librusPassword") != nil
         librusDisplayName = defaults.string(forKey: "librusDisplayName")
         status = isLibrusConnected ? "Konto Librus zapisane" : "Połącz swoje konto Librus"
@@ -181,8 +189,18 @@ final class SyncManager: ObservableObject {
             defaults.set(next, forKey: "knownEventFingerprints")
             defaults.set(true, forKey: "hasCompletedInitialImport")
             defaults.set(Date(), forKey: "lastSuccessfulSync")
-            defaults.set(try? JSONEncoder().encode(Array(snapshot.events.prefix(30))), forKey: "recentAgendaEvents")
-            recentEvents = Array(snapshot.events.prefix(30))
+
+            // "Najbliższe wydarzenia" means upcoming, sorted soonest-first;
+            // calculate against the device's current date every sync, never a fixed date.
+            let upcomingEvents = snapshot.events
+                .filter { $0.endDate >= Date() }
+                .sorted { $0.startDate < $1.startDate }
+            let visibleEvents = Array(upcomingEvents.prefix(30))
+            defaults.set(try? JSONEncoder().encode(visibleEvents), forKey: "recentAgendaEvents")
+            recentEvents = visibleEvents
+
+            // Refresh the two-day reminders after the calendar writes and snapshot are successful.
+            await LocalNotificationService.scheduleTwoDayReminders(for: upcomingEvents)
             lastSync = Date()
             if snapshot.events.isEmpty {
                 status = "Połączono • brak wydarzeń w terminarzu"
