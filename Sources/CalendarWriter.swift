@@ -262,6 +262,25 @@ enum LocalNotificationService {
         )
     }
 
+    private static func notificationDateDescription(for item: AgendaEvent) -> String {
+        let locale = Locale(identifier: "pl_PL")
+        let date = item.startDate.formatted(
+            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year()
+        )
+        if item.isAllDay {
+            return "\(date) • cały dzień"
+        }
+        let start = item.startDate.formatted(.dateTime.locale(locale).hour().minute())
+        if Calendar.current.isDate(item.startDate, inSameDayAs: item.endDate) {
+            let end = item.endDate.formatted(.dateTime.locale(locale).hour().minute())
+            return "\(date) • \(start)–\(end)"
+        }
+        let endDate = item.endDate.formatted(
+            .dateTime.locale(locale).weekday(.wide).day().month(.wide).year().hour().minute()
+        )
+        return "\(date) • od \(start) do \(endDate)"
+    }
+
     /// Schedules a real local notification so the user can verify iOS permissions
     /// and the installed IPA's notification behavior without waiting for a new event.
     static func sendTestNotification() async -> (success: Bool, message: String) {
