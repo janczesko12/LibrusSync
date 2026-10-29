@@ -67,16 +67,6 @@ struct ContentView: View {
         } message: {
             Text(notificationTestMessage)
         }
-        .alert("Dostępna aktualizacja LibrusSync", isPresented: $showAppUpdateAlert) {
-            Button("Pobierz aktualizację") {
-                if let url = appUpdateChecker.releasePageURL {
-                    openURL(url)
-                }
-            }
-            Button("Później", role: .cancel) {}
-        } message: {
-            Text("Masz wersję \(appUpdateChecker.currentVersion), a najnowsza to \(appUpdateChecker.latestVersion ?? "—"). Otwórz stronę wydania, aby pobrać IPA.")
-        }
         .onChange(of: appUpdateChecker.shouldNotifyForRelease) { _, shouldNotify in
             if shouldNotify {
                 showAppUpdateAlert = true
@@ -97,6 +87,16 @@ struct ContentView: View {
                 weeklyOverview
                 syncControl
             }
+        }
+        .alert("Dostępna aktualizacja LibrusSync", isPresented: $showAppUpdateAlert) {
+            Button("Pobierz aktualizację") {
+                if let url = appUpdateChecker.releasePageURL {
+                    openURL(url)
+                }
+            }
+            Button("Później", role: .cancel) {}
+        } message: {
+            Text("Masz wersję \(appUpdateChecker.currentVersion), a najnowsza to \(appUpdateChecker.latestVersion ?? "—"). Otwórz stronę wydania, aby pobrać IPA.")
         }
         .tabItem {
             Label("Start", systemImage: "house.fill")
