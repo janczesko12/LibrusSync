@@ -75,7 +75,7 @@ struct ContentView: View {
             }
             Button("Później", role: .cancel) {}
         } message: {
-            Text("Masz wersję \\(appUpdateChecker.currentVersion), a najnowsza to \\(appUpdateChecker.latestVersion ?? "—"). Otwórz stronę wydania, aby pobrać IPA.")
+            Text("Masz wersję \(appUpdateChecker.currentVersion), a najnowsza to \(appUpdateChecker.latestVersion ?? "—"). Otwórz stronę wydania, aby pobrać IPA.")
         }
         .onChange(of: appUpdateChecker.shouldNotifyForRelease) { _, shouldNotify in
             if shouldNotify {
@@ -1337,7 +1337,7 @@ final class AppUpdateChecker: ObservableObject {
         releaseNotes = defaults.string(forKey: "appUpdate.releaseNotes")
         lastCheckedAt = defaults.object(forKey: lastCheckKey) as? Date
         if let lastCheckedAt {
-            statusMessage = "Ostatnie sprawdzenie: \\(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))"
+            statusMessage = "Ostatnie sprawdzenie: \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))"
         }
     }
 
@@ -1382,7 +1382,7 @@ final class AppUpdateChecker: ObservableObject {
             releaseNotes = release.body
             lastCheckedAt = Date()
             statusMessage = isUpdateAvailable
-                ? "Dostępna nowa wersja: \\(version)"
+                ? "Dostępna nowa wersja: \(version)"
                 : "Masz aktualną wersję."
             defaults.set(version, forKey: "appUpdate.latestVersion")
             defaults.set(release.htmlURL.absoluteString, forKey: "appUpdate.releaseURL")
@@ -1454,7 +1454,7 @@ private struct AppUpdateCard: View {
                     Text("Aktualizacje aplikacji")
                         .font(.headline)
                         .foregroundStyle(ink)
-                    Text("Zainstalowana wersja: \\(checker.currentVersion)")
+                    Text("Zainstalowana wersja: \(checker.currentVersion)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1465,7 +1465,7 @@ private struct AppUpdateCard: View {
             }
 
             if checker.isUpdateAvailable, let latest = checker.latestVersion {
-                Label("Dostępna wersja \\(latest)", systemImage: "arrow.down.circle.fill")
+                Label("Dostępna wersja \(latest)", systemImage: "arrow.down.circle.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.green)
                 Button {
@@ -1479,7 +1479,7 @@ private struct AppUpdateCard: View {
                 .buttonStyle(.borderedProminent)
                 .tint(violet)
             } else if let latest = checker.latestVersion {
-                Label("Masz aktualną wersję (\\(latest))", systemImage: "checkmark.circle.fill")
+                Label("Masz aktualną wersję (\(latest))", systemImage: "checkmark.circle.fill")
                     .font(.subheadline)
                     .foregroundStyle(.green)
             } else {
@@ -1502,7 +1502,7 @@ private struct AppUpdateCard: View {
             .disabled(checker.isChecking)
 
             if let checked = checker.lastCheckedAt {
-                Text("Ostatnie sprawdzenie: \\(checked.formatted(date: .abbreviated, time: .shortened))")
+                Text("Ostatnie sprawdzenie: \(checked.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
