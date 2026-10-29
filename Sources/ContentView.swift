@@ -11,9 +11,14 @@ struct ContentView: View {
     @State private var didCopyWidgetCode = false
     @State private var notificationTestTitle = "Test powiadomień"
     @State private var notificationTestMessage = ""
+    @State private var eventSearch = ""
+    @State private var eventFilter = "Wszystkie"
     @AppStorage("reminderWeekBefore") private var reminderWeekBefore = false
     @AppStorage("reminderTwoDays") private var reminderTwoDays = true
     @AppStorage("reminderSameDay") private var reminderSameDay = false
+    @AppStorage("reminderAdvanceHour") private var reminderAdvanceHour = 18
+    @AppStorage("reminderSameDayHour") private var reminderSameDayHour = 7
+    @AppStorage("reminderAssessmentsOnly") private var reminderAssessmentsOnly = false
 
     private let ink = Color(uiColor: .label)
     private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
@@ -65,6 +70,7 @@ struct ContentView: View {
                 topBar
                 heroCard
                 countdownCard
+                weeklyOverview
                 syncControl
             }
         }
@@ -256,6 +262,114 @@ struct ContentView: View {
         syncManager.recentEvents.first(where: { $0.isAssessment })
     }
 
+    private var nextSevenDaysEvents: [AgendaEvent] {
+        let now = Date()
+        let startOfToday = Calendar.current.startOfDay(for: now)
+        let end = Calendar.current.date(byAdding: .day, value: 7, to: startOfToday) ?? now.addingTimeInterval(7 * 24 * 60 * 60)
+        return syncManager.recentEvents
+            .filter { $0.startDate < end && $0.endDate >= now }
+            .sorted { $0.startDate < $1.startDate }
+    }
+
+    private var busiestUpcomingDay: (date: Date, count: Int)? {
+        let grouped = Dictionary(grouping: nextSevenDaysEvents, by: { Calendar.current.startOfDay(for: $0.startDate) })
+        guard let busiest = grouped.max(by: { $0.value.count < $1.value.count }) else { return nil }
+        return (date: busiest.key, count: busiest.value.count)
+    }
+
+    private var weeklyOverview: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 9) {
+                Image(systemName: "sparkles.rectangle.stack.fill")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Co mnie czeka?")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(ink)
+                    Text("Podsumowanie najbliższych 7 dni")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 9) {
+                dashboardMetric(value: "\(nextSevenDaysEvents.count)", label: "Wydarzenia", symbol: "calendar")
+                dashboardMetric(value: "\(nextSevenDaysEvents.filter(\\.isAssessment).count)", label: "Sprawdziany", symbol: "graduationcap.fill")
+                dashboardMetric(
+                    value: busiestUpcomingDay.map { $0.date.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.abbreviated).day()) } ?? "—",
+                    label: "Najbardziej zajęty dzień",
+                    symbol: "chart.bar.fill"
+                )
+            }
+
+            if nextSevenDaysEvents.isEmpty {
+                Text("Brak nadchodzących wydarzeń w tym tygodniu. Po synchronizacji zobaczysz tu najbliższe terminy.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 3)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(nextSevenDaysEvents.prefix(3).enumerated()), id: \.element.id) { index, event in
+                        HStack(spacing: 10) {
+                            Image(systemName: event.isAssessment ? "graduationcap.fill" : "calendar")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(event.isAssessment ? violet : Color.blue)
+                                .frame(width: 34, height: 34)
+                                .background((event.isAssessment ? violet : Color.blue).opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(event.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(ink)
+                                    .lineLimit(1)
+                                Text(event.startDate.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.wide).day().month(.abbreviated)) + " · " + event.timeLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 3)
+                            Text(event.countdownLabel)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(violet)
+                                .lineLimit(1)
+                        }
+                        .padding(.vertical, 9)
+                        if index < min(nextSevenDaysEvents.count, 3) - 1 {
+                            Divider().padding(.leading, 44)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func dashboardMetric(value: String, label: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(violet)
+            Text(value)
+                .font(.system(size: 17, weight: .heavy, design: .rounded))
+                .foregroundStyle(ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+        .padding(10)
+        .background(violet.opacity(0.07), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+    }
+
     private var reminderSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeading("Przypomnienia", subtitle: "Wybierz, kiedy iPhone ma Ci przypominać")
@@ -276,20 +390,47 @@ struct ContentView: View {
                 Divider().padding(.leading, 56)
                 reminderToggle(
                     title: "W dniu wydarzenia",
-                    subtitle: "O 7:00 lub o 9:00 dla całodniowych",
+                    subtitle: "O wybranej godzinie, jeśli nie jest za późno",
                     symbol: "bell.badge",
                     isOn: $reminderSameDay
+                )
+                Divider().padding(.leading, 56)
+                reminderToggle(
+                    title: "Tylko sprawdziany i kartkówki",
+                    subtitle: "Pomiń zwykłe wydarzenia w planowanych przypomnieniach",
+                    symbol: "graduationcap.fill",
+                    isOn: $reminderAssessmentsOnly
                 )
             }
             .padding(.horizontal, 14)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            Text("Przypomnienia są lokalne. Po zmianie ustawień zaplanowane alerty zostaną przeliczone automatycznie.")
+
+            VStack(spacing: 10) {
+                Picker("Godzina wcześniejszych przypomnień", selection: $reminderAdvanceHour) {
+                    ForEach(15...22, id: \.self) { hour in
+                        Text(String(format: "%02d:00", hour)).tag(hour)
+                    }
+                }
+                Picker("Godzina przypomnienia w dniu wydarzenia", selection: $reminderSameDayHour) {
+                    ForEach(5...10, id: \.self) { hour in
+                        Text(String(format: "%02d:00", hour)).tag(hour)
+                    }
+                }
+            }
+            .pickerStyle(.menu)
+            .padding(12)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            Text("Powiadomienia są planowane lokalnie na telefonie. Zmiana ustawień przelicza alerty. iOS może ograniczyć działanie aplikacji w tle, ale wcześniej zaplanowane powiadomienia nie wymagają kolejnej synchronizacji.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .onChange(of: reminderWeekBefore) { _, _ in refreshReminderSchedule() }
         .onChange(of: reminderTwoDays) { _, _ in refreshReminderSchedule() }
         .onChange(of: reminderSameDay) { _, _ in refreshReminderSchedule() }
+        .onChange(of: reminderAdvanceHour) { _, _ in refreshReminderSchedule() }
+        .onChange(of: reminderSameDayHour) { _, _ in refreshReminderSchedule() }
+        .onChange(of: reminderAssessmentsOnly) { _, _ in refreshReminderSchedule() }
     }
 
     private func reminderToggle(title: String, subtitle: String, symbol: String, isOn: Binding<Bool>) -> some View {
@@ -521,28 +662,89 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    private var upcomingSection: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(alignment: .lastTextBaseline) {
-                sectionHeading("Najbliższe wydarzenia", subtitle: "Z terminarza Librus Synergia")
-                Spacer()
-                Text("\(syncManager.recentEvents.count)").font(.caption.weight(.bold)).foregroundStyle(violet)
-                    .padding(.horizontal, 9).padding(.vertical, 5).background(violet.opacity(0.1), in: Capsule())
+    private var filteredUpcomingEvents: [AgendaEvent] {
+        let normalizedQuery = eventSearch.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return syncManager.recentEvents.filter { event in
+            let matchesFilter: Bool
+            switch eventFilter {
+            case "Sprawdziany":
+                matchesFilter = event.isAssessment
+            case "Pozostałe":
+                matchesFilter = !event.isAssessment
+            default:
+                matchesFilter = true
             }
-            if syncManager.recentEvents.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Image(systemName: "calendar.badge.clock").font(.system(size: 27)).foregroundStyle(violet)
-                    Text("Na razie pusto").font(.headline).foregroundStyle(ink)
-                    Text("Po połączeniu Librusa wydarzenia z terminarza pojawią się tutaj i będą synchronizowane z wybranym kalendarzem Apple.")
-                        .font(.subheadline).foregroundStyle(.secondary)
+            let searchableText = "\(event.title) \(event.notes)"
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+            return matchesFilter && (normalizedQuery.isEmpty || searchableText.contains(normalizedQuery))
+        }
+    }
+
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .lastTextBaseline) {
+                sectionHeading("Inteligentny terminarz", subtitle: "Szukaj i filtruj wydarzenia z Librusa")
+                Spacer()
+                Text("\(filteredUpcomingEvents.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(violet)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(violet.opacity(0.1), in: Capsule())
+            }
+
+            HStack(spacing: 9) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Szukaj nazwy, przedmiotu lub notatki", text: $eventSearch)
+                    .font(.subheadline)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if !eventSearch.isEmpty {
+                    Button {
+                        eventSearch = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading).padding(18)
+            }
+            .padding(12)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Picker("Filtr wydarzeń", selection: $eventFilter) {
+                Text("Wszystkie").tag("Wszystkie")
+                Text("Sprawdziany").tag("Sprawdziany")
+                Text("Pozostałe").tag("Pozostałe")
+            }
+            .pickerStyle(.segmented)
+
+            if filteredUpcomingEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: syncManager.recentEvents.isEmpty ? "calendar.badge.clock" : "line.3.horizontal.decrease.circle")
+                        .font(.system(size: 27))
+                        .foregroundStyle(violet)
+                    Text(syncManager.recentEvents.isEmpty ? "Na razie pusto" : "Brak pasujących wydarzeń")
+                        .font(.headline)
+                        .foregroundStyle(ink)
+                    Text(syncManager.recentEvents.isEmpty
+                         ? "Po połączeniu Librusa wydarzenia pojawią się tutaj."
+                         : "Zmień filtr albo wyszukiwaną frazę, aby zobaczyć inne pozycje.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
                 .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(syncManager.recentEvents.prefix(12).enumerated()), id: \.element.id) { index, event in
-                        EventRow(event: event, accent: index % 3 == 0 ? violet : Color.blue)
-                        if index < min(syncManager.recentEvents.count, 12) - 1 { Divider().padding(.leading, 68) }
+                    ForEach(Array(filteredUpcomingEvents.prefix(30).enumerated()), id: \.element.id) { index, event in
+                        EventRow(event: event, accent: event.isAssessment ? violet : Color.blue)
+                        if index < min(filteredUpcomingEvents.count, 30) - 1 {
+                            Divider().padding(.leading, 68)
+                        }
                     }
                 }
                 .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))

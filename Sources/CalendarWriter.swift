@@ -191,6 +191,9 @@ enum LocalNotificationService {
         )
 
         let defaults = UserDefaults.standard
+        let advanceHour = min(max(defaults.object(forKey: "reminderAdvanceHour") as? Int ?? 18, 15), 22)
+        let sameDayHour = min(max(defaults.object(forKey: "reminderSameDayHour") as? Int ?? 7, 5), 10)
+        let assessmentsOnly = defaults.object(forKey: "reminderAssessmentsOnly") as? Bool ?? false
         let options: [(key: String, daysBefore: Int, label: String, defaultValue: Bool)] = [
             ("reminderWeekBefore", 7, "Za 7 dni", false),
             ("reminderTwoDays", 2, "Za 2 dni", true),
@@ -203,11 +206,15 @@ enum LocalNotificationService {
 
         let now = Date()
         let alerts = events
-            .filter { $0.isUpcoming }
+            .filter { $0.isUpcoming && (!assessmentsOnly || $0.isAssessment) }
             .flatMap { item in
                 enabled.compactMap { option -> (item: AgendaEvent, option: (key: String, daysBefore: Int, label: String, defaultValue: Bool), fireDate: Date)? in
-                    guard let fireDate = reminderDate(for: item, daysBefore: option.daysBefore),
-                          fireDate > now else { return nil }
+                    guard let fireDate = reminderDate(
+                        for: item,
+                        daysBefore: option.daysBefore,
+                        advanceHour: advanceHour,
+                        sameDayHour: sameDayHour
+                    ), fireDate > now else { return nil }
                     return (item, option, fireDate)
                 }
             }
@@ -238,29 +245,22 @@ enum LocalNotificationService {
         }
     }
 
-    private static func reminderDate(for item: AgendaEvent, daysBefore: Int) -> Date? {
+    private static func reminderDate(
+        for item: AgendaEvent,
+        daysBefore: Int,
+        advanceHour: Int,
+        sameDayHour: Int
+    ) -> Date? {
         let calendar = Calendar.current
         guard let original = calendar.date(byAdding: .day, value: -daysBefore, to: item.startDate) else { return nil }
+        let hour = daysBefore == 0 ? sameDayHour : advanceHour
+        guard let reminder = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: original) else { return nil }
 
-        if item.isAllDay {
-            // All-day reminders are delivered at 09:00 local time.
-            return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: original)
+        // Never notify on the day of a timed event after it has already started.
+        if daysBefore == 0 && !item.isAllDay && reminder >= item.startDate {
+            return nil
         }
-
-        if daysBefore == 0 {
-            // On the same day, remind at 07:00 only if that is before the event starts.
-            guard let reminder = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: original),
-                  reminder < item.startDate else { return nil }
-            return reminder
-        }
-        // Preserve the event's local wall-clock time on the selected day.
-        let time = calendar.dateComponents([.hour, .minute, .second], from: item.startDate)
-        return calendar.date(
-            bySettingHour: time.hour ?? 8,
-            minute: time.minute ?? 0,
-            second: time.second ?? 0,
-            of: original
-        )
+        return reminder
     }
 
     private static func notificationDateDescription(for item: AgendaEvent) -> String {
