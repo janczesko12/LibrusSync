@@ -32,6 +32,18 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Smoke test private widget API
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 20 --output "$response_file" --write-out "%{http_code}" "https://librussync-widget-api.vercel.app/api/events")"
+          cat "$response_file"
+          if [ "$status" != "401" ] || ! grep -q "Missing or invalid bearer token" "$response_file"; then
+            echo "Widget API did not return the expected authentication response (HTTP $status)." >&2
+            exit 1
+          fi
+          echo "Widget API responds and requires its own access token."
+
       - name: Verify WidgetKit build settings
         run: |
           set -euo pipefail
