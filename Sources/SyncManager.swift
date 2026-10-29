@@ -156,6 +156,9 @@ final class SyncManager: ObservableObject {
     func handleBackgroundTask(_ task: BGAppRefreshTask) {
         BackgroundRefreshScheduler.shared.scheduleNext()
         let operation = Task { @MainActor in
+            // iOS chooses when this task runs; if it wakes the app, also check the
+            // school's menu page when the seven-day refresh interval has elapsed.
+            _ = try? await CafeteriaMenuService.refreshIfNeeded()
             await self.synchronizeNow()
             task.setTaskCompleted(success: self.errorMessage == nil)
         }

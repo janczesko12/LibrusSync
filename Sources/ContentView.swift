@@ -877,11 +877,16 @@ private struct EventRow: View {
 
 
 private struct CafeteriaView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var document: PDFDocument?
+    @State private var currentMenuURL: URL?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var statusMessage = "Jadłospis sprawdzany automatycznie co 7 dni."
 
-    private let menuURL = URL(string: "https://sp1.bierun.pl/pliki/JADLOSPIS-2610-3010,82.pdf?view=1")!
+    private var menuURLForOpening: URL {
+        currentMenuURL ?? CafeteriaMenuService.fallbackPDFURL
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -904,16 +909,16 @@ private struct CafeteriaView: View {
                     Spacer(minLength: 0)
                 }
 
-                Text("Plan posiłków opublikowany przez szkołę. Połączenie z internetem jest wymagane do pobrania jadłospisu.")
+                Text("Aplikacja szuka aktualnego PDF-a na stronie szkoły. Poprzedni poprawny plan zostaje zapisany na telefonie.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 12) {
                     Button {
-                        Task { await loadMenu() }
+                        Task { await loadMenu(forceSourceCheck: true) }
                     } label: {
-                        Label(isLoading ? "Pobieranie…" : "Odśwież plan", systemImage: "arrow.clockwise")
+                        Label(isLoading ? "Sprawdzanie…" : "Sprawdź teraz", systemImage: "arrow.clockwise")
                             .font(.subheadline.weight(.semibold))
                     }
                     .buttonStyle(.borderedProminent)
@@ -922,12 +927,17 @@ private struct CafeteriaView: View {
 
                     Spacer(minLength: 0)
 
-                    Link(destination: menuURL) {
+                    Link(destination: menuURLForOpening) {
                         Label("Otwórz PDF", systemImage: "safari")
                             .font(.subheadline.weight(.semibold))
                     }
                     .buttonStyle(.bordered)
                 }
+
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -939,15 +949,17 @@ private struct CafeteriaView: View {
                 if isLoading && document == nil {
                     VStack(spacing: 12) {
                         ProgressView()
-                        Text("Pobieram jadłospis…")
+                        Text("Sprawdzam stronę szkoły i pobieram jadłospis…")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                     }
+                    .padding(24)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let document {
                     CafeteriaPDFView(document: document)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityLabel("Jadłospis stołówki w formacie PDF")
+                        .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
                 } else if let errorMessage {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -960,7 +972,7 @@ private struct CafeteriaView: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         Button {
-                            Task { await loadMenu() }
+                            Task { await loadMenu(forceSourceCheck: true) }
                         } label: {
                             Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
                         }
@@ -974,12 +986,12 @@ private struct CafeteriaView: View {
                         Image(systemName: "fork.knife.circle")
                             .font(.system(size: 42))
                             .foregroundStyle(.secondary)
-                        Text("Jadłospis jest gotowy do pobrania")
+                        Text("Jadłospis jest gotowy do sprawdzenia")
                             .font(.headline)
                         Button {
-                            Task { await loadMenu() }
+                            Task { await loadMenu(forceSourceCheck: true) }
                         } label: {
-                            Label("Pobierz jadłospis", systemImage: "arrow.down.doc")
+                            Label("Sprawdź jadłospis", systemImage: "arrow.down.doc")
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -990,52 +1002,220 @@ private struct CafeteriaView: View {
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .task {
-            await loadMenu()
+            await loadMenu(forceSourceCheck: false)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await loadMenu(forceSourceCheck: false) }
+            }
         }
     }
 
     @MainActor
-    private func loadMenu() async {
+    private func loadMenu(forceSourceCheck: Bool) async {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
         do {
-            var request = URLRequest(url: menuURL)
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            request.timeoutInterval = 25
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode) else {
-                throw CafeteriaLoadError.invalidResponse
-            }
-            guard let pdf = PDFDocument(data: data) else {
+            _ = try await CafeteriaMenuService.refreshIfNeeded(force: forceSourceCheck)
+            guard let data = CafeteriaMenuService.cachedPDFData(),
+                  let pdf = PDFDocument(data: data) else {
                 throw CafeteriaLoadError.invalidPDF
             }
+
             document = pdf
-        } catch {
-            if document == nil {
-                errorMessage = error.localizedDescription
+            currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
+            if let checkedAt = CafeteriaMenuService.lastCheckedAt {
+                statusMessage = "Stronę szkoły sprawdzono: \(checkedAt.formatted(date: .abbreviated, time: .shortened))."
             } else {
-                errorMessage = "Nie udało się odświeżyć planu. Wyświetlam ostatnio pobraną wersję."
+                statusMessage = "Pokazuję zapisaną wersję. Ponowna próba znalezienia aktualnego planu nastąpi przy kolejnym otwarciu."
+            }
+        } catch {
+            // Do not replace a valid cached plan with an error screen when the school
+            // site is temporarily unavailable. Try the previously used PDF once if this
+            // is the first run and no cached document exists.
+            if let data = CafeteriaMenuService.cachedPDFData(),
+               let pdf = PDFDocument(data: data) {
+                document = pdf
+                currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
+                statusMessage = "Nie udało się sprawdzić nowego planu. Wyświetlam ostatnio zapisaną wersję."
+            } else {
+                do {
+                    let fallbackData = try await CafeteriaMenuService.downloadFallbackPDF()
+                    guard let pdf = PDFDocument(data: fallbackData) else {
+                        throw CafeteriaLoadError.invalidPDF
+                    }
+                    document = pdf
+                    currentMenuURL = CafeteriaMenuService.fallbackPDFURL
+                    statusMessage = "Nie udało się znaleźć nowego linku. Wyświetlam poprzedni jadłospis; sprawdź ponownie później."
+                } catch {
+                    errorMessage = error.localizedDescription
+                    statusMessage = "Automatyczne sprawdzanie następuje przy otwarciu aplikacji i może być też uruchomione przez iOS w tle."
+                }
             }
         }
     }
 }
 
-private enum CafeteriaLoadError: LocalizedError {
-    case invalidResponse
-    case invalidPDF
+private enum CafeteriaMenuService {
+    static let sourcePageURL = URL(string: "https://sp1.bierun.pl/informacje/stolowka")!
+    static let fallbackPDFURL = URL(string: "https://sp1.bierun.pl/pliki/JADLOSPIS-2610-3010,82.pdf?view=1")!
+    static let weeklyInterval: TimeInterval = 7 * 24 * 60 * 60
 
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "Strona szkoły nie zwróciła poprawnej odpowiedzi. Sprawdź połączenie i spróbuj ponownie."
-        case .invalidPDF:
-            return "Otrzymany plik nie jest poprawnym dokumentem PDF. Możesz otworzyć oryginalny link w Safari."
+    private static let lastCheckedKey = "cafeteriaMenu.lastCheckedAt"
+    private static let pdfURLKey = "cafeteriaMenu.pdfURL"
+    private static let cacheFileName = "cafeteria-menu-sp1-bierun.pdf"
+
+    static var lastCheckedAt: Date? {
+        let timestamp = UserDefaults.standard.double(forKey: lastCheckedKey)
+        return timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
+    }
+
+    static var savedPDFURL: URL? {
+        guard let value = UserDefaults.standard.string(forKey: pdfURLKey) else { return nil }
+        return URL(string: value)
+    }
+
+    static func cachedPDFData() -> Data? {
+        guard let url = cacheFileURL else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    static func refreshIfNeeded(force: Bool = false) async throws -> Bool {
+        let hasCache = cachedPDFData() != nil
+        let hasURL = savedPDFURL != nil
+        let age = lastCheckedAt.map { Date().timeIntervalSince($0) } ?? .infinity
+        guard force || !hasCache || !hasURL || age >= weeklyInterval else {
+            return false
         }
+
+        let latestURL = try await discoverLatestPDFURL()
+        let data = try await downloadPDF(at: latestURL)
+        guard PDFDocument(data: data) != nil else {
+            throw CafeteriaLoadError.invalidPDF
+        }
+
+        guard let destination = cacheFileURL else {
+            throw CafeteriaLoadError.cannotStoreCache
+        }
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: destination, options: .atomic)
+
+        UserDefaults.standard.set(latestURL.absoluteString, forKey: pdfURLKey)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckedKey)
+        return true
+    }
+
+    static func downloadFallbackPDF() async throws -> Data {
+        let data = try await downloadPDF(at: fallbackPDFURL)
+        guard PDFDocument(data: data) != nil else {
+            throw CafeteriaLoadError.invalidPDF
+        }
+        if let destination = cacheFileURL {
+            try? FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? data.write(to: destination, options: .atomic)
+        }
+        // Do not update lastCheckedAt: the official school page should be retried
+        // until it can be parsed successfully.
+        UserDefaults.standard.set(fallbackPDFURL.absoluteString, forKey: pdfURLKey)
+        return data
+    }
+
+    private static var cacheFileURL: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(cacheFileName, isDirectory: false)
+    }
+
+    private static func discoverLatestPDFURL() async throws -> URL {
+        var request = URLRequest(url: sourcePageURL)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 25
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw CafeteriaLoadError.invalidSourcePage
+        }
+        guard let html = String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .isoLatin1) else {
+            throw CafeteriaLoadError.invalidSourcePage
+        }
+
+        let headingPattern = #"(?is)jad[łl]ospis\s*[-–—]\s*aktualny\s*tydzie[ńn]"#
+        guard let headingRegex = try? NSRegularExpression(pattern: headingPattern),
+              let headingMatch = headingRegex.firstMatch(
+                in: html,
+                range: NSRange(html.startIndex..., in: html)
+              ) else {
+            throw CafeteriaLoadError.currentWeekNotFound
+        }
+
+        let sectionStart = headingMatch.range.location + headingMatch.range.length
+        let htmlNSString = html as NSString
+        let remainingRange = NSRange(location: sectionStart, length: htmlNSString.length - sectionStart)
+        let remainingHTML = htmlNSString.substring(with: remainingRange)
+        let nextHeadingPattern = #"(?is)<h[1-6]\b"#
+        let section: String
+        if let nextHeadingRegex = try? NSRegularExpression(pattern: nextHeadingPattern),
+           let nextHeading = nextHeadingRegex.firstMatch(
+             in: remainingHTML,
+             range: NSRange(remainingHTML.startIndex..., in: remainingHTML)
+           ) {
+            section = (remainingHTML as NSString).substring(to: nextHeading.range.location)
+        } else {
+            section = remainingHTML
+        }
+
+        let anchorPattern = #"(?is)<a\b([^>]*)>(.*?)</a>"#
+        guard let anchorRegex = try? NSRegularExpression(pattern: anchorPattern) else {
+            throw CafeteriaLoadError.currentWeekNotFound
+        }
+
+        for match in anchorRegex.matches(in: section, range: NSRange(section.startIndex..., in: section)) {
+            let attributes = (section as NSString).substring(with: match.range(at: 1))
+            let hrefPattern = #"(?is)\bhref\s*=\s*["']([^"']+)["']"#
+            guard let hrefRegex = try? NSRegularExpression(pattern: hrefPattern),
+                  let hrefMatch = hrefRegex.firstMatch(
+                    in: attributes,
+                    range: NSRange(attributes.startIndex..., in: attributes)
+                  ) else { continue }
+
+            var href = (attributes as NSString).substring(with: hrefMatch.range(at: 1))
+            href = href.replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&#038;", with: "&")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let candidate = URL(string: href, relativeTo: sourcePageURL)?.absoluteURL,
+                  candidate.scheme == "https",
+                  candidate.host?.lowercased() == "sp1.bierun.pl",
+                  candidate.pathExtension.lowercased() == "pdf" else { continue }
+            return candidate
+        }
+
+        throw CafeteriaLoadError.currentWeekNotFound
+    }
+
+    private static func downloadPDF(at url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 30
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw CafeteriaLoadError.invalidResponse
+        }
+        guard data.starts(with: Data("%PDF".utf8)) else {
+            throw CafeteriaLoadError.invalidPDF
+        }
+        return data
     }
 }
 
