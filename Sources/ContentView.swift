@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var syncManager = SyncManager.shared
@@ -7,6 +8,7 @@ struct ContentView: View {
     @State private var password = KeychainStore.read(key: "librusPassword") ?? ""
     @State private var showDisconnectConfirmation = false
     @State private var showNotificationTestAlert = false
+    @State private var didCopyWidgetCode = false
     @State private var notificationTestTitle = "Test powiadomień"
     @State private var notificationTestMessage = ""
     @AppStorage("reminderWeekBefore") private var reminderWeekBefore = false
@@ -99,6 +101,7 @@ struct ContentView: View {
         NavigationStack {
             pageScrollView {
                 integrationsSection
+                widgetRemoteSection
                 backgroundNote
                 footer
             }
@@ -551,6 +554,51 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(ink)
             Text(subtitle).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var widgetRemoteSection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            sectionHeading("Widżet na ekranie", subtitle: "Połącz widżet bez App Groups")
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Kod konfiguracji")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                if syncManager.widgetShareCode.isEmpty {
+                    Text("Nie udało się utworzyć kodu. Zamknij i uruchom aplikację ponownie.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(syncManager.widgetShareCode)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(ink)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        UIPasteboard.general.string = syncManager.widgetShareCode
+                        didCopyWidgetCode = true
+                    } label: {
+                        Label(didCopyWidgetCode ? "Skopiowano kod" : "Kopiuj kod do widżetu",
+                              systemImage: didCopyWidgetCode ? "checkmark.circle.fill" : "doc.on.doc")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(violet.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(violet)
+                    Text("Dodaj lub edytuj widżet LibrusSync na ekranie iPhone’a, otwórz ustawienie „Kod widżetu” i wklej skopiowany kod.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Serwer przechowuje daty i treści nadchodzących wydarzeń oraz skróty kluczy dostępu — nie login ani hasło do Librusa. Nie udostępniaj kodu widżetu.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
     }
 

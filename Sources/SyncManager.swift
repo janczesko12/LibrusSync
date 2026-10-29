@@ -15,7 +15,8 @@ final class SyncManager: ObservableObject {
     @Published private(set) var librusDisplayName: String?
     @Published private(set) var calendarChoices: [AppleCalendarChoice] = []
     @Published private(set) var selectedCalendarIdentifier: String?
-    @Published private(set) var widgetDataStatus = WidgetDataStore.diagnosticStatus()
+    @Published private(set) var widgetDataStatus = "Widżet: wykonaj synchronizację, aby wysłać wydarzenia na serwer."
+    @Published private(set) var widgetShareCode = ""
 
     private let defaults = UserDefaults.standard
     private let client = LibrusClient.shared
@@ -33,6 +34,7 @@ final class SyncManager: ObservableObject {
                     .prefix(30)
             )
         }
+        widgetShareCode = Self.ensureWidgetCredentials()
         isLibrusConnected = KeychainStore.read(key: "librusLogin") != nil && KeychainStore.read(key: "librusPassword") != nil
         librusDisplayName = defaults.string(forKey: "librusDisplayName")
         status = isLibrusConnected ? "Konto Librus zapisane" : "Połącz swoje konto Librus"
@@ -207,8 +209,19 @@ final class SyncManager: ObservableObject {
             }
             recentEvents = visibleEvents
 
-            // Share the same, date-filtered list with the home-screen widget.
-            widgetDataStatus = WidgetDataStore.save(events: visibleEvents)
+            // Upload only upcoming event details to the private remote widget feed.
+            if let id = KeychainStore.read(key: "widgetRemoteID"),
+               let readToken = KeychainStore.read(key: "widgetRemoteReadToken"),
+               let writeToken = KeychainStore.read(key: "widgetRemoteWriteToken") {
+                widgetDataStatus = await WidgetRemoteStore.publish(
+                    events: visibleEvents,
+                    id: id,
+                    readToken: readToken,
+                    writeToken: writeToken
+                )
+            } else {
+                widgetDataStatus = "Widżet: nie udało się utworzyć danych dostępowych. Otwórz aplikację ponownie."
+            }
 
             // Rebuild reminders so changed dates and deleted events cannot keep stale alerts.
             await LocalNotificationService.scheduleReminders(for: upcomingEvents)
@@ -239,6 +252,25 @@ final class SyncManager: ObservableObject {
             errorMessage = error.localizedDescription
             status = "Połączono, ale synchronizacja kalendarza nie powiodła się"
         }
+    }
+
+    private static func ensureWidgetCredentials() -> String {
+        if let id = KeychainStore.read(key: "widgetRemoteID"),
+           let readToken = KeychainStore.read(key: "widgetRemoteReadToken"),
+           let writeToken = KeychainStore.read(key: "widgetRemoteWriteToken") {
+            return "\(id)|\(readToken)"
+        }
+        guard let credentials = WidgetRemoteStore.makeCredentials() else { return "" }
+        let savedID = KeychainStore.save(credentials.id, key: "widgetRemoteID")
+        let savedRead = KeychainStore.save(credentials.readToken, key: "widgetRemoteReadToken")
+        let savedWrite = KeychainStore.save(credentials.writeToken, key: "widgetRemoteWriteToken")
+        guard savedID && savedRead && savedWrite else {
+            KeychainStore.delete(key: "widgetRemoteID")
+            KeychainStore.delete(key: "widgetRemoteReadToken")
+            KeychainStore.delete(key: "widgetRemoteWriteToken")
+            return ""
+        }
+        return credentials.shareCode
     }
 
     private func refreshCalendarState() {

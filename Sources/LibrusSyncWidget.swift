@@ -1,27 +1,42 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
 
 struct LibrusSyncWidgetEntry: TimelineEntry {
     let date: Date
     let events: [AgendaEvent]
 }
 
-struct LibrusSyncWidgetProvider: TimelineProvider {
+struct LibrusSyncWidgetConfigurationIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Konfiguracja widżetu LibrusSync"
+    static var description = IntentDescription("Wklej kod z aplikacji LibrusSync, aby widżet pobierał prywatne wydarzenia.")
+
+    @Parameter(title: "Kod widżetu", description: "Wklej kod skopiowany w aplikacji LibrusSync.")
+    var accessCode: String
+
+    init() {
+        accessCode = ""
+    }
+}
+
+struct LibrusSyncWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> LibrusSyncWidgetEntry {
         LibrusSyncWidgetEntry(date: Date(), events: Self.previewEvents)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (LibrusSyncWidgetEntry) -> Void) {
-        // The widget gallery asks for a snapshot before the user has synced any data.
-        // Always give it something useful to preview instead of an empty card.
-        let events = context.isPreview ? Self.previewEvents : WidgetDataStore.loadUpcomingEvents()
-        completion(LibrusSyncWidgetEntry(date: Date(), events: events))
+    func snapshot(for configuration: LibrusSyncWidgetConfigurationIntent, in context: Context) async -> LibrusSyncWidgetEntry {
+        if context.isPreview {
+            return LibrusSyncWidgetEntry(date: Date(), events: Self.previewEvents)
+        }
+        let events = await WidgetRemoteStore.loadUpcomingEvents(accessCode: configuration.accessCode)
+        return LibrusSyncWidgetEntry(date: Date(), events: events)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<LibrusSyncWidgetEntry>) -> Void) {
-        let entry = LibrusSyncWidgetEntry(date: Date(), events: WidgetDataStore.loadUpcomingEvents())
-        let refresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-        completion(Timeline(entries: [entry], policy: .after(refresh)))
+    func timeline(for configuration: LibrusSyncWidgetConfigurationIntent, in context: Context) async -> Timeline<LibrusSyncWidgetEntry> {
+        let events = await WidgetRemoteStore.loadUpcomingEvents(accessCode: configuration.accessCode)
+        let entry = LibrusSyncWidgetEntry(date: Date(), events: events)
+        let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
+        return Timeline(entries: [entry], policy: .after(refresh))
     }
 
     private static var previewEvents: [AgendaEvent] {
@@ -209,7 +224,7 @@ struct LibrusSyncUpcomingWidget: Widget {
     let kind = "LibrusSyncUpcomingWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: LibrusSyncWidgetProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: LibrusSyncWidgetConfigurationIntent.self, provider: LibrusSyncWidgetProvider()) { entry in
             LibrusSyncUpcomingWidgetView(entry: entry)
         }
         .configurationDisplayName("LibrusSync — sprawdziany")
