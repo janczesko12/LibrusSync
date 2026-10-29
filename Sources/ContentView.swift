@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PDFKit
 
 struct ContentView: View {
     @StateObject private var syncManager = SyncManager.shared
@@ -28,6 +29,7 @@ struct ContentView: View {
         TabView {
             homeTab
             eventsTab
+            cafeteriaTab
             remindersTab
             settingsTab
         }
@@ -88,6 +90,13 @@ struct ContentView: View {
         .tabItem {
             Label("Wydarzenia", systemImage: "calendar")
         }
+    }
+
+    private var cafeteriaTab: some View {
+        CafeteriaView()
+            .tabItem {
+                Label("Stołówka", systemImage: "fork.knife")
+            }
     }
 
     private var remindersTab: some View {
@@ -863,5 +872,190 @@ private struct EventRow: View {
             Image(systemName: "calendar").font(.caption).foregroundStyle(.tertiary).padding(.top, 3)
         }
         .padding(14)
+    }
+}
+
+
+private struct CafeteriaView: View {
+    @State private var document: PDFDocument?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    private let menuURL = URL(string: "https://sp1.bierun.pl/pliki/JADLOSPIS-2610-3010,82.pdf?view=1")!
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "fork.knife")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(Color(red: 0.38, green: 0.30, blue: 0.93))
+                        .frame(width: 48, height: 48)
+                        .background(Color(red: 0.38, green: 0.30, blue: 0.93).opacity(0.1),
+                                    in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Jadłospis szkolny")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(Color.primary)
+                        Text("Stołówka • SP1 Bieruń")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                Text("Plan posiłków opublikowany przez szkołę. Połączenie z internetem jest wymagane do pobrania jadłospisu.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 12) {
+                    Button {
+                        Task { await loadMenu() }
+                    } label: {
+                        Label(isLoading ? "Pobieranie…" : "Odśwież plan", systemImage: "arrow.clockwise")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.38, green: 0.30, blue: 0.93))
+                    .disabled(isLoading)
+
+                    Spacer(minLength: 0)
+
+                    Link(destination: menuURL) {
+                        Label("Otwórz PDF", systemImage: "safari")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
+
+            Divider()
+
+            Group {
+                if isLoading && document == nil {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Pobieram jadłospis…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let document {
+                    CafeteriaPDFView(document: document)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel("Jadłospis stołówki w formacie PDF")
+                } else if let errorMessage {
+                    VStack(spacing: 12) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 38))
+                            .foregroundStyle(.secondary)
+                        Text("Nie udało się pobrać jadłospisu")
+                            .font(.headline)
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            Task { await loadMenu() }
+                        } label: {
+                            Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.38, green: 0.30, blue: 0.93))
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "fork.knife.circle")
+                            .font(.system(size: 42))
+                            .foregroundStyle(.secondary)
+                        Text("Jadłospis jest gotowy do pobrania")
+                            .font(.headline)
+                        Button {
+                            Task { await loadMenu() }
+                        } label: {
+                            Label("Pobierz jadłospis", systemImage: "arrow.down.doc")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .background(Color(uiColor: .systemGroupedBackground))
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .task {
+            await loadMenu()
+        }
+    }
+
+    @MainActor
+    private func loadMenu() async {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            var request = URLRequest(url: menuURL)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.timeoutInterval = 25
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode) else {
+                throw CafeteriaLoadError.invalidResponse
+            }
+            guard let pdf = PDFDocument(data: data) else {
+                throw CafeteriaLoadError.invalidPDF
+            }
+            document = pdf
+        } catch {
+            if document == nil {
+                errorMessage = error.localizedDescription
+            } else {
+                errorMessage = "Nie udało się odświeżyć planu. Wyświetlam ostatnio pobraną wersję."
+            }
+        }
+    }
+}
+
+private enum CafeteriaLoadError: LocalizedError {
+    case invalidResponse
+    case invalidPDF
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "Strona szkoły nie zwróciła poprawnej odpowiedzi. Sprawdź połączenie i spróbuj ponownie."
+        case .invalidPDF:
+            return "Otrzymany plik nie jest poprawnym dokumentem PDF. Możesz otworzyć oryginalny link w Safari."
+        }
+    }
+}
+
+private struct CafeteriaPDFView: UIViewRepresentable {
+    let document: PDFDocument
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        view.displaysPageBreaks = true
+        view.backgroundColor = UIColor.systemGroupedBackground
+        view.document = document
+        return view
+    }
+
+    func updateUIView(_ uiView: PDFView, context: Context) {
+        if uiView.document !== document {
+            uiView.document = document
+        }
     }
 }
