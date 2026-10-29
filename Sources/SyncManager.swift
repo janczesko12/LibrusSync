@@ -15,6 +15,7 @@ final class SyncManager: ObservableObject {
     @Published private(set) var librusDisplayName: String?
     @Published private(set) var calendarChoices: [AppleCalendarChoice] = []
     @Published private(set) var selectedCalendarIdentifier: String?
+    @Published private(set) var widgetDataStatus = WidgetDataStore.diagnosticStatus()
 
     private let defaults = UserDefaults.standard
     private let client = LibrusClient.shared
