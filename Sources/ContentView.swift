@@ -1059,7 +1059,7 @@ private struct CafeteriaView: View {
     }
 }
 
-private enum CafeteriaMenuService {
+enum CafeteriaMenuService {
     static let sourcePageURL = URL(string: "https://sp1.bierun.pl/informacje/stolowka")!
     static let fallbackPDFURL = URL(string: "https://sp1.bierun.pl/pliki/JADLOSPIS-2610-3010,82.pdf?view=1")!
     static let weeklyInterval: TimeInterval = 7 * 24 * 60 * 60
