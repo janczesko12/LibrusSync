@@ -1219,6 +1219,29 @@ enum CafeteriaMenuService {
     }
 }
 
+private enum CafeteriaLoadError: LocalizedError {
+    case invalidSourcePage
+    case currentWeekNotFound
+    case invalidResponse
+    case invalidPDF
+    case cannotStoreCache
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidSourcePage:
+            return "Nie udało się odczytać strony stołówki. Sprawdź połączenie i spróbuj ponownie."
+        case .currentWeekNotFound:
+            return "Nie znaleziono linku do aktualnego jadłospisu na stronie szkoły."
+        case .invalidResponse:
+            return "Strona szkoły nie zwróciła poprawnej odpowiedzi. Spróbuj ponownie."
+        case .invalidPDF:
+            return "Pobrany plik nie jest poprawnym dokumentem PDF."
+        case .cannotStoreCache:
+            return "Nie udało się zapisać jadłospisu na telefonie."
+        }
+    }
+}
+
 private struct CafeteriaPDFView: UIViewRepresentable {
     let document: PDFDocument
 
