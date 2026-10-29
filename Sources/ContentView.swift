@@ -298,7 +298,7 @@ struct ContentView: View {
 
             HStack(spacing: 9) {
                 dashboardMetric(value: "\(nextSevenDaysEvents.count)", label: "Wydarzenia", symbol: "calendar")
-                dashboardMetric(value: "\(nextSevenDaysEvents.filter(\\.isAssessment).count)", label: "Sprawdziany", symbol: "graduationcap.fill")
+                dashboardMetric(value: "\(nextSevenDaysEvents.filter(\.isAssessment).count)", label: "Sprawdziany", symbol: "graduationcap.fill")
                 dashboardMetric(
                     value: busiestUpcomingDay.map { $0.date.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.abbreviated).day()) } ?? "—",
                     label: "Najbardziej zajęty dzień",
