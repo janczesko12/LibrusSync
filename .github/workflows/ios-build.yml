@@ -121,3 +121,42 @@ jobs:
           path: LibrusSync-Simulator.zip
           if-no-files-found: error
           retention-days: 14
+
+  publish:
+    name: Publish GitHub update
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download unsigned IPA from this build
+        uses: actions/download-artifact@v4
+        with:
+          name: LibrusSync-iOS-unsigned-IPA
+          path: dist
+
+      - name: Verify IPA artifact
+        run: |
+          set -euo pipefail
+          test -s dist/LibrusSync-unsigned.ipa
+          file dist/LibrusSync-unsigned.ipa
+
+      - name: Publish release for this exact build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TAG="v1.0.${BUILD_NUMBER}"
+          NOTES="Automatyczna kompilacja LibrusSync z commita ${SOURCE_SHA:0:7}.
+
+          Plik IPA jest niepodpisany. Na iPhonie trzeba go podpisać i zainstalować przez AltStore PAL lub inny zgodny instalator."
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/LibrusSync-unsigned.ipa --clobber --repo "$REPO"
+          else
+            gh release create "$TAG" dist/LibrusSync-unsigned.ipa --repo "$REPO" --title "LibrusSync $TAG" --notes "$NOTES"
+          fi
