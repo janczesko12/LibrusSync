@@ -472,8 +472,8 @@ struct ContentView: View {
             .padding(.top, 2)
 
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: syncManager.widgetDataStatus.contains("brak dostępu") ? "exclamationmark.triangle.fill" : "rectangle.topthird.inset.filled")
-                    .foregroundStyle(syncManager.widgetDataStatus.contains("brak dostępu") ? Color.orange : violet)
+                Image(systemName: "rectangle.topthird.inset.filled")
+                    .foregroundStyle(violet)
                 Text(syncManager.widgetDataStatus)
                     .font(.caption)
                     .foregroundStyle(.secondary)
