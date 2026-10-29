@@ -4,7 +4,10 @@ import PDFKit
 
 struct ContentView: View {
     @StateObject private var syncManager = SyncManager.shared
+    @StateObject private var appUpdateChecker = AppUpdateChecker()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    @State private var showAppUpdateAlert = false
     @State private var login = KeychainStore.read(key: "librusLogin") ?? ""
     @State private var password = KeychainStore.read(key: "librusPassword") ?? ""
     @State private var showDisconnectConfirmation = false
@@ -37,7 +40,10 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                Task { await syncManager.appBecameActive() }
+                Task {
+                    await appUpdateChecker.checkIfNeeded()
+                    await syncManager.appBecameActive()
+                }
             case .background:
                 BackgroundRefreshScheduler.shared.scheduleNext()
             case .inactive:
@@ -61,7 +67,23 @@ struct ContentView: View {
         } message: {
             Text(notificationTestMessage)
         }
+        .alert("Dostępna aktualizacja LibrusSync", isPresented: $showAppUpdateAlert) {
+            Button("Pobierz aktualizację") {
+                if let url = appUpdateChecker.releasePageURL {
+                    openURL(url)
+                }
+            }
+            Button("Później", role: .cancel) {}
+        } message: {
+            Text("Masz wersję \\(appUpdateChecker.currentVersion), a najnowsza to \\(appUpdateChecker.latestVersion ?? "—"). Otwórz stronę wydania, aby pobrać IPA.")
+        }
+        .onChange(of: appUpdateChecker.shouldNotifyForRelease) { _, shouldNotify in
+            if shouldNotify {
+                showAppUpdateAlert = true
+            }
+        }
         .task {
+            await appUpdateChecker.checkIfNeeded()
             await syncManager.requestPermissionsOnLaunch()
         }
     }
@@ -117,6 +139,7 @@ struct ContentView: View {
             pageScrollView {
                 integrationsSection
                 widgetRemoteSection
+                AppUpdateCard(checker: appUpdateChecker)
                 backgroundNote
                 footer
             }
@@ -1260,5 +1283,236 @@ private struct CafeteriaPDFView: UIViewRepresentable {
         if uiView.document !== document {
             uiView.document = document
         }
+    }
+}
+
+
+// MARK: - App updates (GitHub Releases)
+
+private struct GitHubAppRelease: Decodable {
+    struct Asset: Decodable {
+        let name: String
+    }
+
+    let tagName: String
+    let htmlURL: URL
+    let body: String?
+    let assets: [Asset]
+
+    enum CodingKeys: String, CodingKey {
+        case tagName = "tag_name"
+        case htmlURL = "html_url"
+        case body
+        case assets
+    }
+}
+
+@MainActor
+final class AppUpdateChecker: ObservableObject {
+    @Published private(set) var latestVersion: String?
+    @Published private(set) var releasePageURL: URL?
+    @Published private(set) var releaseNotes: String?
+    @Published private(set) var isChecking = false
+    @Published private(set) var statusMessage = "Aktualizacje sprawdzane są automatycznie."
+    @Published private(set) var lastCheckedAt: Date?
+    @Published private(set) var shouldNotifyForRelease = false
+
+    private let checkInterval: TimeInterval = 24 * 60 * 60
+    private let lastCheckKey = "appUpdate.lastCheck"
+    private let lastNotifiedKey = "appUpdate.lastNotifiedVersion"
+    private let defaults = UserDefaults.standard
+
+    var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    var isUpdateAvailable: Bool {
+        guard let latestVersion else { return false }
+        return Self.compareVersions(latestVersion, currentVersion) > 0
+    }
+
+    init() {
+        latestVersion = defaults.string(forKey: "appUpdate.latestVersion")
+        releasePageURL = defaults.string(forKey: "appUpdate.releaseURL").flatMap(URL.init(string:))
+        releaseNotes = defaults.string(forKey: "appUpdate.releaseNotes")
+        lastCheckedAt = defaults.object(forKey: lastCheckKey) as? Date
+        if let lastCheckedAt {
+            statusMessage = "Ostatnie sprawdzenie: \\(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))"
+        }
+    }
+
+    func checkIfNeeded() async {
+        if let lastCheckedAt, Date().timeIntervalSince(lastCheckedAt) < checkInterval {
+            // Use cached release details until the daily refresh interval expires.
+            shouldNotifyForRelease = false
+            return
+        }
+        await checkNow()
+    }
+
+    func checkNow() async {
+        guard !isChecking else { return }
+        isChecking = true
+        shouldNotifyForRelease = false
+        defer { isChecking = false }
+
+        do {
+            let endpoint = URL(string: "https://api.github.com/repos/janczesko12/LibrusSync/releases/latest")!
+            var request = URLRequest(url: endpoint)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.timeoutInterval = 15
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            request.setValue("LibrusSync-iOS", forHTTPHeaderField: "User-Agent")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw UpdateCheckError.releaseUnavailable
+            }
+            let release = try JSONDecoder().decode(GitHubAppRelease.self, from: data)
+            guard release.assets.contains(where: { $0.name.lowercased().hasSuffix(".ipa") }) else {
+                throw UpdateCheckError.ipaMissing
+            }
+            guard Self.versionParts(release.tagName) != nil else {
+                throw UpdateCheckError.invalidVersion
+            }
+
+            let version = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+            latestVersion = version
+            releasePageURL = release.htmlURL
+            releaseNotes = release.body
+            lastCheckedAt = Date()
+            statusMessage = isUpdateAvailable
+                ? "Dostępna nowa wersja: \\(version)"
+                : "Masz aktualną wersję."
+            defaults.set(version, forKey: "appUpdate.latestVersion")
+            defaults.set(release.htmlURL.absoluteString, forKey: "appUpdate.releaseURL")
+            defaults.set(release.body, forKey: "appUpdate.releaseNotes")
+            defaults.set(lastCheckedAt, forKey: lastCheckKey)
+
+            if isUpdateAvailable, defaults.string(forKey: lastNotifiedKey) != version {
+                defaults.set(version, forKey: lastNotifiedKey)
+                shouldNotifyForRelease = true
+            }
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private static func versionParts(_ value: String) -> [Int]? {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"^[vV]"#, with: "", options: .regularExpression)
+        let pieces = clean.split(separator: ".", omittingEmptySubsequences: false)
+        guard !pieces.isEmpty, pieces.count <= 3 else { return nil }
+        let result = pieces.compactMap { Int($0) }
+        return result.count == pieces.count ? result : nil
+    }
+
+    private static func compareVersions(_ lhs: String, _ rhs: String) -> Int {
+        guard let left = versionParts(lhs), let right = versionParts(rhs) else { return 0 }
+        for index in 0..<max(left.count, right.count) {
+            let a = index < left.count ? left[index] : 0
+            let b = index < right.count ? right[index] : 0
+            if a != b { return a < b ? -1 : 1 }
+        }
+        return 0
+    }
+}
+
+private enum UpdateCheckError: LocalizedError {
+    case releaseUnavailable
+    case ipaMissing
+    case invalidVersion
+
+    var errorDescription: String? {
+        switch self {
+        case .releaseUnavailable:
+            return "Nie udało się odczytać najnowszego wydania. Sprawdź połączenie lub spróbuj później."
+        case .ipaMissing:
+            return "Najnowsze wydanie nie zawiera pliku IPA do pobrania."
+        case .invalidVersion:
+            return "Wydanie ma nieprawidłowy numer wersji."
+        }
+    }
+}
+
+private struct AppUpdateCard: View {
+    @ObservedObject var checker: AppUpdateChecker
+    @Environment(\.openURL) private var openURL
+
+    private var ink: Color { Color(uiColor: .label) }
+    private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Aktualizacje aplikacji")
+                        .font(.headline)
+                        .foregroundStyle(ink)
+                    Text("Zainstalowana wersja: \\(checker.currentVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if checker.isChecking {
+                    ProgressView()
+                }
+            }
+
+            if checker.isUpdateAvailable, let latest = checker.latestVersion {
+                Label("Dostępna wersja \\(latest)", systemImage: "arrow.down.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.green)
+                Button {
+                    if let url = checker.releasePageURL { openURL(url) }
+                } label: {
+                    Label("Pobierz aktualizację", systemImage: "arrow.down.to.line")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(violet)
+            } else if let latest = checker.latestVersion {
+                Label("Masz aktualną wersję (\\(latest))", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.green)
+            } else {
+                Text(checker.statusMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                Task { await checker.checkNow() }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text(checker.isChecking ? "Sprawdzanie…" : "Sprawdź teraz")
+                }
+                .font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(checker.isChecking)
+
+            if let checked = checker.lastCheckedAt {
+                Text("Ostatnie sprawdzenie: \\(checked.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Text("iOS nie instaluje IPA automatycznie. Po pobraniu otwórz plik w AltStore PAL lub swoim instalatorze, aby potwierdzić aktualizację.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
