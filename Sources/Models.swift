@@ -119,6 +119,40 @@ struct LessonPeriod: Codable, Identifiable, Equatable {
     let teacherAndRoom: String
     let startTime: String
     let endTime: String
+    var isSubstitution: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id, number, subject, teacherAndRoom, startTime, endTime, isSubstitution
+    }
+
+    init(
+        id: String,
+        number: Int,
+        subject: String,
+        teacherAndRoom: String,
+        startTime: String,
+        endTime: String,
+        isSubstitution: Bool = false
+    ) {
+        self.id = id
+        self.number = number
+        self.subject = subject
+        self.teacherAndRoom = teacherAndRoom
+        self.startTime = startTime
+        self.endTime = endTime
+        self.isSubstitution = isSubstitution
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        number = try values.decode(Int.self, forKey: .number)
+        subject = try values.decode(String.self, forKey: .subject)
+        teacherAndRoom = try values.decode(String.self, forKey: .teacherAndRoom)
+        startTime = try values.decode(String.self, forKey: .startTime)
+        endTime = try values.decode(String.self, forKey: .endTime)
+        isSubstitution = try values.decodeIfPresent(Bool.self, forKey: .isSubstitution) ?? false
+    }
 }
 
 struct TimetableDay: Codable, Identifiable, Equatable {
