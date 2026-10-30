@@ -1929,6 +1929,16 @@ private struct TimetableView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+                if lesson.isSubstitution {
+                    Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(0.35)
+                        .foregroundStyle(Color.orange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.12), in: Capsule())
+                        .accessibilityLabel("Lekcja odbywa się w ramach zastępstwa")
+                }
                 if !lesson.teacherAndRoom.isEmpty {
                     Text(lesson.teacherAndRoom)
                         .font(.caption)
