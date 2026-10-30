@@ -110,3 +110,36 @@ enum SyncError: LocalizedError {
         }
     }
 }
+
+
+struct LessonPeriod: Codable, Identifiable, Equatable {
+    let id: String
+    let number: Int
+    let subject: String
+    let teacherAndRoom: String
+    let startTime: String
+    let endTime: String
+}
+
+struct TimetableDay: Codable, Identifiable, Equatable {
+    let id: String
+    let date: Date
+    let lessons: [LessonPeriod]
+}
+
+enum TimetableLoadError: LocalizedError {
+    case accountNotConnected
+    case noPublishedPlan
+    case invalidResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .accountNotConnected:
+            return "Najpierw połącz konto Librus w zakładce Start."
+        case .noPublishedPlan:
+            return "Librus nie udostępnia planu lekcji dla tego tygodnia. Szkoła może jeszcze nie opublikować planu na koncie ucznia."
+        case .invalidResponse:
+            return "Nie udało się odczytać planu lekcji z Librusa. Spróbuj ponownie."
+        }
+    }
+}

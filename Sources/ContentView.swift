@@ -31,6 +31,7 @@ struct ContentView: View {
     var body: some View {
         TabView {
             homeTab
+            timetableTab
             eventsTab
             cafeteriaTab
             remindersTab
@@ -101,6 +102,13 @@ struct ContentView: View {
         .tabItem {
             Label("Start", systemImage: "house.fill")
         }
+    }
+
+    private var timetableTab: some View {
+        TimetableView()
+            .tabItem {
+                Label("Plan lekcji", systemImage: "calendar.day.timeline.left")
+            }
     }
 
     private var eventsTab: some View {
@@ -907,131 +915,204 @@ private struct CafeteriaView: View {
     @State private var errorMessage: String?
     @State private var statusMessage = "Jadłospis sprawdzany automatycznie co 7 dni."
 
+    private let green = Color(red: 0.13, green: 0.48, blue: 0.36)
+    private let mint = Color(red: 0.28, green: 0.69, blue: 0.49)
+
     private var menuURLForOpening: URL {
         currentMenuURL ?? CafeteriaMenuService.fallbackPDFURL
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Image(systemName: "fork.knife")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.38, green: 0.30, blue: 0.93))
-                        .frame(width: 48, height: 48)
-                        .background(Color(red: 0.38, green: 0.30, blue: 0.93).opacity(0.1),
-                                    in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Jadłospis szkolny")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(Color.primary)
-                        Text("Stołówka • SP1 Bieruń")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                }
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                heroCard
+                statusCard
 
-                Text("Aplikacja szuka aktualnego PDF-a na stronie szkoły. Poprzedni poprawny plan zostaje zapisany na telefonie.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 12) {
-                    Button {
-                        Task { await loadMenu(forceSourceCheck: true) }
-                    } label: {
-                        Label(isLoading ? "Sprawdzanie…" : "Sprawdź teraz", systemImage: "arrow.clockwise")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.38, green: 0.30, blue: 0.93))
-                    .disabled(isLoading)
-
-                    Spacer(minLength: 0)
-
-                    Link(destination: menuURLForOpening) {
-                        Label("Otwórz PDF", systemImage: "safari")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Text(statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(uiColor: .secondarySystemGroupedBackground))
-
-            Divider()
-
-            Group {
-                if isLoading && document == nil {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Sprawdzam stronę szkoły i pobieram jadłospis…")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let document {
-                    CafeteriaPDFView(document: document)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
-                } else if let errorMessage {
-                    VStack(spacing: 12) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 38))
-                            .foregroundStyle(.secondary)
-                        Text("Nie udało się pobrać jadłospisu")
-                            .font(.headline)
-                        Text(errorMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button {
-                            Task { await loadMenu(forceSourceCheck: true) }
-                        } label: {
-                            Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
+                if let document {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Label("Jadłospis tygodniowy", systemImage: "doc.text.fill")
+                                .font(.headline)
+                            Spacer()
+                            Text("PDF")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(green)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(green.opacity(0.1), in: Capsule())
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color(red: 0.38, green: 0.30, blue: 0.93))
+
+                        CafeteriaPDFView(document: document)
+                            .frame(height: 610)
+                            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
                     }
-                    .padding(24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(14)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.primary.opacity(0.045), lineWidth: 1)
+                    }
                 } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "fork.knife.circle")
-                            .font(.system(size: 42))
-                            .foregroundStyle(.secondary)
-                        Text("Jadłospis jest gotowy do sprawdzenia")
-                            .font(.headline)
-                        Button {
-                            Task { await loadMenu(forceSourceCheck: true) }
-                        } label: {
-                            Label("Sprawdź jadłospis", systemImage: "arrow.down.doc")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    emptyState
                 }
+
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundStyle(green)
+                    Text("Jadłospis pochodzi z oficjalnej strony SP1 Bieruń. Aplikacja zachowuje ostatni poprawnie pobrany dokument, aby można go było otworzyć także bez internetu.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 3)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .padding(.horizontal, 17)
+            .padding(.top, 16)
+            .padding(.bottom, 28)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .task {
             await loadMenu(forceSourceCheck: false)
+        }
+        .refreshable {
+            await loadMenu(forceSourceCheck: true)
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await loadMenu(forceSourceCheck: false) }
             }
         }
+    }
+
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("SP1 BIERUŃ", systemImage: "building.2.fill")
+                    .font(.caption2.weight(.bold))
+                    .tracking(1.2)
+                    .foregroundStyle(.white.opacity(0.82))
+                Spacer()
+                Image(systemName: "fork.knife.circle.fill")
+                    .font(.system(size: 34, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.93))
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Co dziś jemy?")
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Menu szkolnej stołówki w jednym miejscu")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.82))
+            }
+
+            HStack(spacing: 9) {
+                Button {
+                    Task { await loadMenu(forceSourceCheck: true) }
+                } label: {
+                    HStack(spacing: 7) {
+                        if isLoading {
+                            ProgressView().tint(green)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text(isLoading ? "Sprawdzanie…" : "Odśwież jadłospis")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(green)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(.white, in: Capsule())
+                }
+                .disabled(isLoading)
+
+                Link(destination: menuURLForOpening) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 42, height: 42)
+                        .background(.white.opacity(0.17), in: Circle())
+                }
+                .accessibilityLabel("Otwórz oryginalny jadłospis PDF")
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [green, mint],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+        )
+        .overlay(alignment: .topTrailing) {
+            Circle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 150, height: 150)
+                .offset(x: 50, y: -65)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        }
+        .shadow(color: green.opacity(0.17), radius: 16, x: 0, y: 8)
+    }
+
+    private var statusCard: some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: CafeteriaMenuService.lastCheckedAt == nil ? "clock.fill" : "checkmark.seal.fill")
+                .font(.title3)
+                .foregroundStyle(green)
+                .frame(width: 39, height: 39)
+                .background(green.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(document == nil ? "Status jadłospisu" : "Jadłospis zapisany")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            if isLoading {
+                ProgressView()
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 13) {
+            Image(systemName: errorMessage == nil ? "fork.knife.circle.fill" : "doc.text.magnifyingglass")
+                .font(.system(size: 43))
+                .foregroundStyle(green.opacity(0.8))
+            Text(errorMessage == nil ? "Pobieramy jadłospis" : "Nie udało się pobrać menu")
+                .font(.headline)
+            Text(errorMessage ?? "Łączę się ze stroną szkoły i szukam aktualnego dokumentu.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button {
+                Task { await loadMenu(forceSourceCheck: true) }
+            } label: {
+                Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(green)
+            .disabled(isLoading)
+        }
+        .padding(26)
+        .frame(maxWidth: .infinity)
+        .background(Color(uiColor: .secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     @MainActor
@@ -1051,19 +1132,17 @@ private struct CafeteriaView: View {
             document = pdf
             currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
             if let checkedAt = CafeteriaMenuService.lastCheckedAt {
-                statusMessage = "Stronę szkoły sprawdzono: \(checkedAt.formatted(date: .abbreviated, time: .shortened))."
+                statusMessage = "Oficjalną stronę szkoły sprawdzono: \(checkedAt.formatted(date: .abbreviated, time: .shortened))."
             } else {
-                statusMessage = "Pokazuję zapisaną wersję. Ponowna próba znalezienia aktualnego planu nastąpi przy kolejnym otwarciu."
+                statusMessage = "Wyświetlam zapisaną wersję. Aplikacja ponowi próbę znalezienia nowego jadłospisu przy kolejnym otwarciu."
             }
         } catch {
-            // Do not replace a valid cached plan with an error screen when the school
-            // site is temporarily unavailable. Try the previously used PDF once if this
-            // is the first run and no cached document exists.
             if let data = CafeteriaMenuService.cachedPDFData(),
                let pdf = PDFDocument(data: data) {
                 document = pdf
                 currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
-                statusMessage = "Nie udało się sprawdzić nowego planu. Wyświetlam ostatnio zapisaną wersję."
+                statusMessage = "Nie udało się pobrać nowego menu. Pokazuję ostatnio zapisaną wersję."
+                errorMessage = error.localizedDescription
             } else {
                 do {
                     let fallbackData = try await CafeteriaMenuService.downloadFallbackPDF()
@@ -1072,10 +1151,10 @@ private struct CafeteriaView: View {
                     }
                     document = pdf
                     currentMenuURL = CafeteriaMenuService.fallbackPDFURL
-                    statusMessage = "Nie udało się znaleźć nowego linku. Wyświetlam poprzedni jadłospis; sprawdź ponownie później."
+                    statusMessage = "Pokazuję poprzedni jadłospis. Spróbuj ponownie później."
                 } catch {
                     errorMessage = error.localizedDescription
-                    statusMessage = "Automatyczne sprawdzanie następuje przy otwarciu aplikacji i może być też uruchomione przez iOS w tle."
+                    statusMessage = "Automatyczne sprawdzanie odbywa się przy otwarciu aplikacji."
                 }
             }
         }
@@ -1514,5 +1593,457 @@ private struct AppUpdateCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+
+// MARK: - Weekly timetable
+
+private struct TimetableView: View {
+    @ObservedObject private var syncManager = SyncManager.shared
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var weekStart: Date
+    @State private var selectedDate: Date
+    @State private var days: [TimetableDay] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var didLoad = false
+
+    private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
+    private let lilac = Color(red: 0.63, green: 0.48, blue: 0.98)
+
+    init() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let monday = Self.monday(for: today)
+        let weekday = Calendar.current.component(.weekday, from: today)
+        _weekStart = State(initialValue: monday)
+        _selectedDate = State(initialValue: weekday == 1 || weekday == 7 ? monday : today)
+    }
+
+    private static func monday(for date: Date) -> Date {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: date)
+        let offset = (weekday + 5) % 7
+        return calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: date)) ?? date
+    }
+
+    private var weekDates: [Date] {
+        (0..<5).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: weekStart) }
+    }
+
+    private var selectedLessons: [LessonPeriod] {
+        days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) })?.lessons ?? []
+    }
+
+    private var cacheKey: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd"
+        return "librusSync.timetable.\(formatter.string(from: weekStart))"
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                heroCard
+                weekPicker
+                dayPicker
+                selectedDayHeader
+                lessonContent
+                footerNote
+            }
+            .padding(.horizontal, 17)
+            .padding(.top, 16)
+            .padding(.bottom, 30)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .task {
+            await loadTimetable(force: false)
+        }
+        .refreshable {
+            await loadTimetable(force: true)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await loadTimetable(force: false) }
+            }
+        }
+    }
+
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Label("TWÓJ SZKOLNY TYDZIEŃ", systemImage: "calendar")
+                    .font(.caption2.weight(.bold))
+                    .tracking(1.15)
+                    .foregroundStyle(.white.opacity(0.78))
+                Spacer()
+                Image(systemName: "book.closed.fill")
+                    .font(.system(size: 29, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.88))
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Plan lekcji")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Wszystkie zajęcia, godziny i sale w jednym miejscu.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 8) {
+                Label("\(selectedLessons.count) lekcji", systemImage: "list.number")
+                Text("•")
+                Text(selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))))
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 8)
+            .background(.white.opacity(0.16), in: Capsule())
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [Color(red: 0.28, green: 0.24, blue: 0.77), violet, lilac],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+        )
+        .overlay(alignment: .topTrailing) {
+            Circle()
+                .stroke(.white.opacity(0.13), lineWidth: 1)
+                .frame(width: 112, height: 112)
+                .offset(x: 23, y: -38)
+        }
+        .shadow(color: violet.opacity(0.17), radius: 16, x: 0, y: 8)
+    }
+
+    private var weekPicker: some View {
+        HStack(spacing: 12) {
+            Button {
+                moveWeek(-1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.09), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Poprzedni tydzień")
+
+            VStack(spacing: 3) {
+                Text("WYBRANY TYDZIEŃ")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.9)
+                    .foregroundStyle(.secondary)
+                Text(weekRangeTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+
+            Button {
+                moveWeek(1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(violet)
+                    .frame(width: 42, height: 42)
+                    .background(violet.opacity(0.09), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Następny tydzień")
+
+            Button {
+                Task { await loadTimetable(force: true) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 42, height: 42)
+                    .background(LinearGradient(colors: [violet, lilac], startPoint: .topLeading, endPoint: .bottomTrailing), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading)
+            .accessibilityLabel("Odśwież plan lekcji")
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+    }
+
+    private var dayPicker: some View {
+        HStack(spacing: 8) {
+            ForEach(weekDates, id: \.self) { date in
+                let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
+                let today = Calendar.current.isDateInToday(date)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        selectedDate = date
+                    }
+                } label: {
+                    VStack(spacing: 7) {
+                        Text(shortWeekday(date))
+                            .font(.caption2.weight(.bold))
+                            .textCase(.uppercase)
+                        Text(date.formatted(.dateTime.day()))
+                            .font(.system(size: 19, weight: .bold, design: .rounded))
+                        Circle()
+                            .fill(selected ? .white : (today ? violet : .clear))
+                            .frame(width: 4, height: 4)
+                    }
+                    .foregroundStyle(selected ? .white : .primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background {
+                        if selected {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(LinearGradient(colors: [violet, lilac], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        } else {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                        }
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(selected ? .clear : Color.primary.opacity(0.045), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(fullDate(date))
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+    }
+
+    private var selectedDayHeader: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(fullDate(selectedDate))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text(Calendar.current.isDateInToday(selectedDate) ? "Twój plan na dzisiaj" : "Plan na wybrany dzień")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if Calendar.current.isDateInToday(selectedDate) {
+                Text("DZISIAJ")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.6)
+                    .foregroundStyle(violet)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(violet.opacity(0.1), in: Capsule())
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lessonContent: some View {
+        if isLoading && days.isEmpty {
+            VStack(spacing: 12) {
+                ProgressView().tint(violet)
+                Text("Pobieram plan z Librusa…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 44)
+            .background(Color(uiColor: .secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else if let errorMessage, days.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: syncManager.isLibrusConnected ? "calendar.badge.exclamationmark" : "person.crop.circle.badge.exclamationmark")
+                    .font(.system(size: 36))
+                    .foregroundStyle(violet)
+                Text(syncManager.isLibrusConnected ? "Plan lekcji niedostępny" : "Połącz konto Librus")
+                    .font(.headline)
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button {
+                    Task { await loadTimetable(force: true) }
+                } label: {
+                    Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(violet)
+                .disabled(isLoading)
+            }
+            .padding(23)
+            .frame(maxWidth: .infinity)
+            .background(Color(uiColor: .secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else if selectedLessons.isEmpty {
+            VStack(spacing: 10) {
+                Image(systemName: "sun.max.fill")
+                    .font(.system(size: 34))
+                    .foregroundStyle(Color.orange)
+                Text("Brak lekcji")
+                    .font(.headline)
+                Text("Na ten dzień nie ma zajęć w opublikowanym planie.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(25)
+            .frame(maxWidth: .infinity)
+            .background(Color(uiColor: .secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else {
+            VStack(spacing: 10) {
+                ForEach(selectedLessons) { lesson in
+                    lessonCard(lesson)
+                }
+            }
+        }
+    }
+
+    private func lessonCard(_ lesson: LessonPeriod) -> some View {
+        HStack(spacing: 13) {
+            VStack(spacing: 4) {
+                Text("\(lesson.number)")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(violet)
+                Text("LEKCJA")
+                    .font(.system(size: 8, weight: .bold))
+                    .tracking(0.5)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 48, height: 54)
+            .background(violet.opacity(0.09), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(lesson.subject)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !lesson.teacherAndRoom.isEmpty {
+                    Text(lesson.teacherAndRoom)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 3)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(lesson.startTime.isEmpty ? "—" : lesson.startTime)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text(lesson.endTime.isEmpty ? "" : lesson.endTime)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(13)
+        .background(Color(uiColor: .secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(LinearGradient(colors: [violet, lilac], startPoint: .top, endPoint: .bottom))
+                .frame(width: 4)
+                .padding(.vertical, 13)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .stroke(Color.primary.opacity(0.045), lineWidth: 1)
+        }
+    }
+
+    private var footerNote: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "info.circle.fill")
+                .foregroundStyle(violet)
+            Text("Plan jest pobierany z opublikowanego widoku Librus Synergia. Jeśli szkoła nie udostępnia planu uczniom, aplikacja pokaże informację zamiast wymyślonych lekcji.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 3)
+    }
+
+    private var weekRangeTitle: String {
+        let end = Calendar.current.date(byAdding: .day, value: 4, to: weekStart) ?? weekStart
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pl_PL")
+        formatter.dateFormat = "d MMM"
+        return "\(formatter.string(from: weekStart)) – \(formatter.string(from: end))"
+    }
+
+    private func shortWeekday(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pl_PL")
+        formatter.dateFormat = "EEEEE"
+        return formatter.string(from: date)
+    }
+
+    private func fullDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pl_PL")
+        formatter.dateFormat = "EEEE, d MMMM"
+        return formatter.string(from: date).capitalized
+    }
+
+    private func moveWeek(_ offset: Int) {
+        guard let newWeek = Calendar.current.date(byAdding: .day, value: 7 * offset, to: weekStart) else { return }
+        weekStart = newWeek
+        selectedDate = newWeek
+        days = []
+        errorMessage = nil
+        didLoad = false
+        Task { await loadTimetable(force: false) }
+    }
+
+    @MainActor
+    private func loadTimetable(force: Bool) async {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+            didLoad = true
+        }
+
+        if !force, let cached = UserDefaults.standard.data(forKey: cacheKey),
+           let cachedDays = try? JSONDecoder().decode([TimetableDay].self, from: cached) {
+            days = cachedDays
+        }
+
+        guard syncManager.isLibrusConnected else {
+            if days.isEmpty {
+                errorMessage = TimetableLoadError.accountNotConnected.localizedDescription
+            }
+            return
+        }
+
+        do {
+            let freshDays = try await syncManager.fetchTimetable(weekStarting: weekStart)
+            days = freshDays
+            if let encoded = try? JSONEncoder().encode(freshDays) {
+                UserDefaults.standard.set(encoded, forKey: cacheKey)
+            }
+            errorMessage = nil
+        } catch {
+            if days.isEmpty {
+                errorMessage = error.localizedDescription
+            } else {
+                errorMessage = "Nie udało się odświeżyć danych. Wyświetlam ostatnio zapisany plan."
+            }
+        }
     }
 }

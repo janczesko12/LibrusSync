@@ -92,6 +92,16 @@ final class SyncManager: ObservableObject {
         }
     }
 
+    func fetchTimetable(weekStarting date: Date) async throws -> [TimetableDay] {
+        guard let login = KeychainStore.read(key: "librusLogin"),
+              let password = KeychainStore.read(key: "librusPassword") else {
+            throw TimetableLoadError.accountNotConnected
+        }
+        // Make sure the authenticated session is still valid before opening the HTML timetable page.
+        _ = try await client.synchronize(login: login, password: password)
+        return try await client.fetchTimetable(weekStarting: date)
+    }
+
     func prepareAppleCalendar() async {
         do {
             try await writer.prepareAccessAndLoadCalendars()

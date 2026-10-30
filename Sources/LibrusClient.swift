@@ -198,6 +198,178 @@ final class LibrusClient {
         return json
     }
 
+
+    /// Fetch the published weekly timetable from Librus Synergia.
+    /// Librus exposes this view as an authenticated HTML page rather than a stable public JSON API.
+    func fetchTimetable(weekStarting date: Date) async throws -> [TimetableDay] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        let weekday = calendar.component(.weekday, from: date)
+        let daysFromMonday = (weekday + 5) % 7
+        guard let monday = calendar.date(byAdding: .day, value: -daysFromMonday, to: calendar.startOfDay(for: date)),
+              let sunday = calendar.date(byAdding: .day, value: 6, to: monday) else {
+            throw TimetableLoadError.invalidResponse
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = calendar.timeZone
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let weekValue = "\(dateFormatter.string(from: monday))_\(dateFormatter.string(from: sunday))"
+
+        guard let url = URL(string: "https://synergia.librus.pl/przegladaj_plan_lekcji") else {
+            throw TimetableLoadError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 25
+        request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        request.setValue("https://synergia.librus.pl/", forHTTPHeaderField: "Referer")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.httpBody = encodeForm([("tydzien", weekValue)]).data(using: .utf8)
+
+        let (data, response) = try await send(request)
+        if response.statusCode == 401 || response.statusCode == 403 || (300..<400).contains(response.statusCode) {
+            throw LibrusClientError.sessionExpired
+        }
+        guard (200..<300).contains(response.statusCode),
+              let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+            throw TimetableLoadError.invalidResponse
+        }
+        return try parseTimetableHTML(html, monday: monday, calendar: calendar)
+    }
+
+    private func parseTimetableHTML(_ html: String, monday: Date, calendar: Calendar) throws -> [TimetableDay] {
+        func matches(_ pattern: String, in source: String) -> [[String]] {
+            guard let regex = try? NSRegularExpression(
+                pattern: pattern,
+                options: [.caseInsensitive, .dotMatchesLineSeparators]
+            ) else { return [] }
+            let range = NSRange(source.startIndex..., in: source)
+            return regex.matches(in: source, range: range).map { result in
+                (0..<result.numberOfRanges).map { index in
+                    guard let range = Range(result.range(at: index), in: source) else { return "" }
+                    return String(source[range])
+                }
+            }
+        }
+
+        func plainText(_ source: String) -> String {
+            var value = source
+                .replacingOccurrences(of: #"(?is)<br\s*/?>"#, with: " • ", options: .regularExpression)
+                .replacingOccurrences(of: #"(?is)</(div|p|li)>"#, with: " ", options: .regularExpression)
+                .replacingOccurrences(of: #"(?is)<[^>]+>"#, with: " ", options: .regularExpression)
+            let entities: [(String, String)] = [
+                ("&nbsp;", " "), ("&#160;", " "), ("&#xa0;", " "),
+                ("&amp;", "&"), ("&quot;", "\""), ("&#39;", "'"),
+                ("&apos;", "'"), ("&lt;", "<"), ("&gt;", ">")
+            ]
+            for (entity, replacement) in entities {
+                value = value.replacingOccurrences(of: entity, with: replacement, options: .caseInsensitive)
+            }
+            value = value.replacingOccurrences(of: #"&#(\d+);"#, with: "", options: .regularExpression)
+            value = value.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            return value.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        func parseDate(_ value: String) -> Date? {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = calendar.timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter.date(from: value)
+        }
+
+        let tablePattern = #"<table\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bplan-lekcji\b[^"']*["'])[^>]*>(.*?)</table>"#
+        guard let table = matches(tablePattern, in: html).first, table.count > 1 else {
+            throw TimetableLoadError.noPublishedPlan
+        }
+
+        let rowPattern = #"<tr\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bline1\b[^"']*["'])[^>]*>(.*?)</tr>"#
+        let rows = matches(rowPattern, in: table[1])
+        guard !rows.isEmpty else { throw TimetableLoadError.noPublishedPlan }
+
+        var lessonsByDay = Array(repeating: [LessonPeriod](), count: 5)
+        let cellPattern = #"<td\b(?=[^>]*\bid\s*=\s*["']timetableEntryBox["'])(?=[^>]*\bclass\s*=\s*["']line1["'])[^>]*>(.*?)</td>"#
+        let centerCellPattern = #"<td\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bcenter\b[^"']*["'])[^>]*>(.*?)</td>"#
+        let dataAttributePattern = #"\bdata-[A-Za-z0-9_-]+\s*=\s*["']([^"']*)["']"#
+        let textDivPattern = #"<div\b(?=[^>]*\bclass\s*=\s*["'][^"']*\btext\b[^"']*["'])[^>]*>(.*?)</div>"#
+        let boldPattern = #"<b\b[^>]*>(.*?)</b>"#
+        let boldRemovalPattern = #"<b\b[^>]*>.*?</b>"#
+
+        for (rowIndex, rowMatch) in rows.enumerated() {
+            let rowHTML = rowMatch.count > 1 ? rowMatch[1] : ""
+            let numberHTML = matches(centerCellPattern, in: rowHTML).first
+            let periodNumber = numberHTML.flatMap { $0.count > 1 ? Int(plainText($0[1])) : nil } ?? (rowIndex + 1)
+            let cells = matches(cellPattern, in: rowHTML)
+
+            for (dayIndex, cell) in cells.prefix(5).enumerated() {
+                guard cell.count > 1 else { continue }
+                let cellTag = cell[0]
+                let cellHTML = cell[1]
+                let dataValues = matches(dataAttributePattern, in: cellTag).compactMap { $0.count > 1 ? $0[1] : nil }
+                func attribute(_ name: String) -> String? {
+                    let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: name) + #"\s*=\s*["']([^"']*)["']"#
+                    return matches(pattern, in: cellTag).first.flatMap { $0.count > 1 ? $0[1] : nil }
+                }
+
+                let dateText = attribute("data-date") ?? dataValues.first ?? ""
+                let startTime = attribute("data-from") ?? dataValues.dropFirst().first ?? ""
+                let endTime = attribute("data-to") ?? dataValues.dropFirst(2).first ?? ""
+                let lessonDate = parseDate(dateText) ?? calendar.date(byAdding: .day, value: dayIndex, to: monday) ?? monday
+
+                let textDivs = matches(textDivPattern, in: cellHTML)
+                var subjects: [String] = []
+                var teacherAndRoom: [String] = []
+                for div in textDivs where div.count > 1 {
+                    let segment = div[1]
+                    let names = matches(boldPattern, in: segment).compactMap { $0.count > 1 ? plainText($0[1]) : nil }.filter { !$0.isEmpty }
+                    subjects.append(contentsOf: names)
+                    let withoutSubject = segment.replacingOccurrences(
+                        of: boldRemovalPattern,
+                        with: " ",
+                        options: [.regularExpression, .caseInsensitive]
+                    )
+                    let details = plainText(withoutSubject)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: " -•\t\n\r"))
+                    if !details.isEmpty { teacherAndRoom.append(details) }
+                }
+
+                let subject = subjects.joined(separator: " / ").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !subject.isEmpty else { continue }
+                let detail = teacherAndRoom.joined(separator: " / ")
+                let dateKey = Int(lessonDate.timeIntervalSince1970)
+                let lessonID = "\(dateKey)-\(periodNumber)-\(startTime)"
+                lessonsByDay[dayIndex].append(
+                    LessonPeriod(
+                        id: lessonID,
+                        number: periodNumber,
+                        subject: subject,
+                        teacherAndRoom: detail,
+                        startTime: startTime,
+                        endTime: endTime
+                    )
+                )
+            }
+        }
+
+        guard lessonsByDay.contains(where: { !$0.isEmpty }) else {
+            throw TimetableLoadError.noPublishedPlan
+        }
+
+        return (0..<5).compactMap { index in
+            guard let dayDate = calendar.date(byAdding: .day, value: index, to: monday) else { return nil }
+            let dayID = String(Int(dayDate.timeIntervalSince1970))
+            let orderedLessons = lessonsByDay[index].sorted { lhs, rhs in
+                if lhs.number != rhs.number { return lhs.number < rhs.number }
+                return lhs.startTime < rhs.startTime
+            }
+            return TimetableDay(id: dayID, date: dayDate, lessons: orderedLessons)
+        }
+    }
+
     private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
             let (data, response) = try await session.data(for: request)
