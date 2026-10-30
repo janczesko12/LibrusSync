@@ -340,6 +340,18 @@ final class LibrusClient {
                 let subject = subjects.joined(separator: " / ").trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !subject.isEmpty else { continue }
                 let detail = teacherAndRoom.joined(separator: " / ")
+
+                // Librus can mark substitutions in visible text, title/alt attributes
+                // or CSS classes. Normalize Polish diacritics before checking the marker.
+                let substitutionSource = "\(cellTag) \(cellHTML)"
+                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+                    .lowercased()
+                let isSubstitution =
+                    substitutionSource.contains("zastepstwo") ||
+                    substitutionSource.contains("zastepca") ||
+                    substitutionSource.contains("substitution") ||
+                    substitutionSource.range(of: #"\\bzast\\.?\\b"#, options: .regularExpression) != nil
+
                 let dateKey = Int(lessonDate.timeIntervalSince1970)
                 let lessonID = "\(dateKey)-\(periodNumber)-\(startTime)"
                 lessonsByDay[dayIndex].append(
@@ -349,7 +361,8 @@ final class LibrusClient {
                         subject: subject,
                         teacherAndRoom: detail,
                         startTime: startTime,
-                        endTime: endTime
+                        endTime: endTime,
+                        isSubstitution: isSubstitution
                     )
                 )
             }
