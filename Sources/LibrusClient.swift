@@ -350,7 +350,7 @@ final class LibrusClient {
                     substitutionSource.contains("zastepstwo") ||
                     substitutionSource.contains("zastepca") ||
                     substitutionSource.contains("substitution") ||
-                    substitutionSource.range(of: #"\\bzast\\.?\\b"#, options: .regularExpression) != nil
+                    substitutionSource.range(of: #"\bzast\.?\b"#, options: .regularExpression) != nil
 
                 let dateKey = Int(lessonDate.timeIntervalSince1970)
                 let lessonID = "\(dateKey)-\(periodNumber)-\(startTime)"
