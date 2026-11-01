@@ -32,6 +32,7 @@ struct ContentView: View {
         TabView {
             homeTab
             timetableTab
+            aiTeacherTab
             eventsTab
             cafeteriaTab
             remindersTab
@@ -108,6 +109,13 @@ struct ContentView: View {
         TimetableView()
             .tabItem {
                 Label("Plan lekcji", systemImage: "calendar.day.timeline.left")
+            }
+    }
+
+    private var aiTeacherTab: some View {
+        AIStudyView()
+            .tabItem {
+                Label("AI Nauka", systemImage: "sparkles")
             }
     }
 
