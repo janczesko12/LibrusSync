@@ -263,10 +263,10 @@ final class SyncManager: ObservableObject {
                 status = "Połączono • brak wydarzeń w terminarzu"
             } else if isFirstSync {
                 status = "Pierwsza synchronizacja ukończona"
-            } else if addedItems.isEmpty && changedItems.isEmpty {
+            } else if addedItems.isEmpty && changedItems.isEmpty && removedCount == 0 {
                 status = "Wszystko aktualne"
             } else {
-                status = "Nowe: \(addedItems.count) • Zmienione: \(changedItems.count)"
+                status = "Nowe: \(addedItems.count) • Zmienione: \(changedItems.count) • Usunięte: \(removedCount)"
             }
             errorMessage = nil
             BackgroundRefreshScheduler.shared.scheduleNext()
