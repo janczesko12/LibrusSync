@@ -942,9 +942,25 @@ private struct CafeteriaView: View {
                                 .background(green.opacity(0.1), in: Capsule())
                         }
 
+                        HStack(spacing: 8) {
+                            Label("Aktualne menu", systemImage: "checkmark.seal.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(green)
+                            Spacer()
+                            Text("SP1 • BIERUŃ")
+                                .font(.caption2.weight(.bold))
+                                .tracking(0.6)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.bottom, 2)
+
                         CafeteriaPDFView(document: document)
-                            .frame(height: 610)
-                            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .frame(height: 560)
+                            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                                    .stroke(green.opacity(0.12), lineWidth: 1)
+                            }
                             .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
                     }
                     .padding(14)
@@ -1193,6 +1209,7 @@ enum CafeteriaMenuService {
             return false
         }
 
+        let previousData = cachedPDFData()
         let latestURL = try await discoverLatestPDFURL()
         let data = try await downloadPDF(at: latestURL)
         guard PDFDocument(data: data) != nil else {
@@ -1210,6 +1227,15 @@ enum CafeteriaMenuService {
 
         UserDefaults.standard.set(latestURL.absoluteString, forKey: pdfURLKey)
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckedKey)
+
+        // Only alert when a previously cached menu changes; the first download is not a "new menu".
+        if let previousData, previousData != data {
+            await LocalNotificationService.notify(
+                title: "Nowy jadłospis szkolny",
+                body: "Na stronie SP1 Bieruń pojawił się nowy jadłospis. Otwórz LibrusSync → Stołówka.",
+                identifier: "menu-\\(latestURL.lastPathComponent)-\\(data.count)"
+            )
+        }
         return true
     }
 
@@ -1797,8 +1823,8 @@ private struct TimetableView: View {
                         Text(date.formatted(.dateTime.day()))
                             .font(.system(size: 19, weight: .bold, design: .rounded))
                         Circle()
-                            .fill(selected ? .white : (today ? violet : .clear))
-                            .frame(width: 4, height: 4)
+                            .fill(selected ? .white : (dateHasSubstitution(date) ? Color.orange : (today ? violet : .clear)))
+                            .frame(width: 5, height: 5)
                     }
                     .foregroundStyle(selected ? .white : .primary)
                     .frame(maxWidth: .infinity)
@@ -1822,6 +1848,11 @@ private struct TimetableView: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
+    }
+
+    private func dateHasSubstitution(_ date: Date) -> Bool {
+        days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?
+            .lessons.contains(where: \\.isSubstitution) ?? false
     }
 
     private var selectedDayHeader: some View {
@@ -1911,11 +1942,14 @@ private struct TimetableView: View {
     }
 
     private func lessonCard(_ lesson: LessonPeriod) -> some View {
-        HStack(spacing: 13) {
+        let substitution = lesson.isSubstitution
+        let current = isCurrentLesson(lesson)
+        let accent = substitution ? Color.orange : violet
+        return HStack(spacing: 13) {
             VStack(spacing: 4) {
                 Text("\(lesson.number)")
                     .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(violet)
+                    .foregroundStyle(accent)
                 Text("LEKCJA")
                     .font(.system(size: 8, weight: .bold))
                     .tracking(0.5)
@@ -1929,8 +1963,9 @@ private struct TimetableView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
-                if lesson.isSubstitution {
-                    Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
+                HStack(spacing: 6) {
+                    if substitution {
+                        Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
                         .font(.system(size: 9, weight: .bold))
                         .tracking(0.35)
                         .foregroundStyle(Color.orange)
@@ -1938,6 +1973,16 @@ private struct TimetableView: View {
                         .padding(.vertical, 5)
                         .background(Color.orange.opacity(0.12), in: Capsule())
                         .accessibilityLabel("Lekcja odbywa się w ramach zastępstwa")
+                    }
+                    if current {
+                        Text("TERAZ")
+                            .font(.system(size: 9, weight: .heavy))
+                            .tracking(0.4)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.green, in: Capsule())
+                    }
                 }
                 if !lesson.teacherAndRoom.isEmpty {
                     Text(lesson.teacherAndRoom)
@@ -1961,18 +2006,39 @@ private struct TimetableView: View {
             }
         }
         .padding(13)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .background(
+            current ? Color.green.opacity(0.075) :
+                (substitution ? Color.orange.opacity(0.075) : Color(uiColor: .secondarySystemGroupedBackground)),
+            in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+        )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(LinearGradient(colors: [violet, lilac], startPoint: .top, endPoint: .bottom))
-                .frame(width: 4)
-                .padding(.vertical, 13)
+                .fill(accent)
+                .frame(width: substitution ? 5 : 4)
+                .padding(.vertical, 11)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(Color.primary.opacity(0.045), lineWidth: 1)
+                .stroke(substitution ? Color.orange.opacity(0.35) : (current ? Color.green.opacity(0.3) : Color.primary.opacity(0.045)), lineWidth: substitution || current ? 1.2 : 1)
         }
+        .animation(.snappy(duration: 0.22), value: current)
+        .animation(.snappy(duration: 0.22), value: substitution)
+    }
+
+    private func isCurrentLesson(_ lesson: LessonPeriod) -> Bool {
+        guard Calendar.current.isDateInToday(selectedDate) else { return false }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        guard let startClock = formatter.date(from: lesson.startTime),
+              let endClock = formatter.date(from: lesson.endTime) else { return false }
+        let calendar = Calendar.current
+        let now = Date()
+        let startParts = calendar.dateComponents([.hour, .minute], from: startClock)
+        let endParts = calendar.dateComponents([.hour, .minute], from: endClock)
+        guard let start = calendar.date(bySettingHour: startParts.hour ?? 0, minute: startParts.minute ?? 0, second: 0, of: selectedDate),
+              let end = calendar.date(bySettingHour: endParts.hour ?? 0, minute: endParts.minute ?? 0, second: 0, of: selectedDate) else { return false }
+        return now >= start && now < end
     }
 
     private var footerNote: some View {
@@ -2043,7 +2109,32 @@ private struct TimetableView: View {
 
         do {
             let freshDays = try await syncManager.fetchTimetable(weekStarting: weekStart)
+            let previousDays: [TimetableDay]? = UserDefaults.standard.data(forKey: cacheKey)
+                .flatMap { try? JSONDecoder().decode([TimetableDay].self, from: $0) }
             days = freshDays
+            if let previousDays {
+                func lessonFingerprint(_ lesson: LessonPeriod) -> String {
+                    "\\(lesson.id)|\\(lesson.subject)|\\(lesson.teacherAndRoom)|\\(lesson.startTime)|\\(lesson.endTime)|\\(lesson.isSubstitution)"
+                }
+                let oldSubstitutions = Set(previousDays.flatMap(\\.lessons).filter(\\.isSubstitution).map(lessonFingerprint))
+                let newSubstitutions = freshDays.flatMap(\\.lessons)
+                    .filter(\\.isSubstitution)
+                    .filter { !oldSubstitutions.contains(lessonFingerprint($0)) }
+                if !newSubstitutions.isEmpty {
+                    let first = newSubstitutions[0]
+                    await LocalNotificationService.notify(
+                        title: "Dodano zastępstwo",
+                        body: "\\(first.subject) • \\(newSubstitutions.count) nowe/zmienione zastępstwa w planie. Sprawdź szczegóły w LibrusSync.",
+                        identifier: "substitution-\\(cacheKey)-\\(newSubstitutions.map(\\.id).sorted().joined(separator: "-"))"
+                    )
+                } else if previousDays != freshDays {
+                    await LocalNotificationService.notify(
+                        title: "Zmieniono plan lekcji",
+                        body: "LibrusSync wykrył aktualizację planu na wybrany tydzień.",
+                        identifier: "timetable-\\(cacheKey)-\\(Int(Date().timeIntervalSince1970))"
+                    )
+                }
+            }
             if let encoded = try? JSONEncoder().encode(freshDays) {
                 UserDefaults.standard.set(encoded, forKey: cacheKey)
             }
