@@ -1724,7 +1724,7 @@ private struct TimetableView: View {
             HStack(spacing: 8) {
                 Label("\(selectedLessons.count) lekcji", systemImage: "list.number")
                 Text("•")
-                Label("\(selectedLessons.filter(\\.isSubstitution).count) zastępstw", systemImage: "arrow.triangle.2.circlepath")
+                Label("\(selectedLessons.filter { $0.isSubstitution }.count) zastępstw", systemImage: "arrow.triangle.2.circlepath")
                 Text("•")
                 Text(selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))))
             }
