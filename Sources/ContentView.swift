@@ -1006,8 +1006,6 @@ private struct EventRow: View {
 
 
 private struct CafeteriaView: View {
-
-private struct CafeteriaView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var document: PDFDocument?
     @State private var currentMenuURL: URL?
