@@ -203,8 +203,10 @@ final class SyncManager: ObservableObject {
 
             // Reconcile deletes only when the API returned a non-empty valid snapshot.
             // This avoids wiping the user's calendar if Librus unexpectedly returns no data.
+            var removedCount = 0
             if !snapshot.events.isEmpty {
                 let liveUIDs = Set(snapshot.events.map(\.uid))
+                removedCount = Set(next.keys).subtracting(liveUIDs).count
                 _ = try writer.removeSyncedEvents(notIn: liveUIDs)
                 next = next.filter { liveUIDs.contains($0.key) }
             }
@@ -247,6 +249,13 @@ final class SyncManager: ObservableObject {
                 for item in changedItems {
                     await LocalNotificationService.notify(for: item, updated: true)
                 }
+                if removedCount > 0 {
+                    await LocalNotificationService.notify(
+                        title: "Usunięto wpisy z Librusa",
+                        body: "W terminarzu zniknęło \(removedCount) wydarzeń. Sprawdź aktualny plan.",
+                        identifier: "removed-events-\(Int(Date().timeIntervalSince1970))"
+                    )
+                }
             }
 
             lastSync = Date()
@@ -261,6 +270,7 @@ final class SyncManager: ObservableObject {
             }
             errorMessage = nil
             BackgroundRefreshScheduler.shared.scheduleNext()
+            await checkTimetableUpdates()
         } catch {
             errorMessage = error.localizedDescription
             status = "Połączono, ale synchronizacja kalendarza nie powiodła się"
@@ -283,7 +293,7 @@ final class SyncManager: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd"
-        let cacheKey = "librusSync.timetable.\\(formatter.string(from: monday))"
+        let cacheKey = "librusSync.timetable.\(formatter.string(from: monday))"
 
         do {
             // apply(_:) is called after a successful Librus login/sync, so the session is ready.
@@ -293,25 +303,25 @@ final class SyncManager: ObservableObject {
 
             if let previousDays {
                 func fingerprint(_ lesson: LessonPeriod) -> String {
-                    "\\(lesson.id)|\\(lesson.subject)|\\(lesson.teacherAndRoom)|\\(lesson.startTime)|\\(lesson.endTime)|\\(lesson.isSubstitution)"
+                    "\(lesson.id)|\(lesson.subject)|\(lesson.teacherAndRoom)|\(lesson.startTime)|\(lesson.endTime)|\(lesson.isSubstitution)"
                 }
-                let known = Set(previousDays.flatMap(\\.lessons).filter(\\.isSubstitution).map(fingerprint))
-                let added = freshDays.flatMap(\\.lessons)
-                    .filter(\\.isSubstitution)
+                let known = Set(previousDays.flatMap(\.lessons).filter(\.isSubstitution).map(fingerprint))
+                let added = freshDays.flatMap(\.lessons)
+                    .filter(\.isSubstitution)
                     .filter { !known.contains(fingerprint($0)) }
 
                 if !added.isEmpty {
                     let first = added[0]
                     await LocalNotificationService.notify(
                         title: "Dodano zastępstwo",
-                        body: "\\(first.subject) • wykryto \\(added.count) nowych lub zmienionych zastępstw. Sprawdź plan lekcji.",
-                        identifier: "timetable-substitution-\\(formatter.string(from: monday))-\\(added.map(\\.id).sorted().joined(separator: "-"))"
+                        body: "\(first.subject) • wykryto \(added.count) nowych lub zmienionych zastępstw. Sprawdź plan lekcji.",
+                        identifier: "timetable-substitution-\(formatter.string(from: monday))-\(added.map(\.id).sorted().joined(separator: "-"))"
                     )
                 } else if previousDays != freshDays {
                     await LocalNotificationService.notify(
                         title: "Zaktualizowano plan lekcji",
                         body: "Librus opublikował zmiany w planie na bieżący tydzień.",
-                        identifier: "timetable-update-\\(formatter.string(from: monday))-\\(Int(Date().timeIntervalSince1970))"
+                        identifier: "timetable-update-\(formatter.string(from: monday))-\(Int(Date().timeIntervalSince1970))"
                     )
                 }
             }
@@ -321,7 +331,7 @@ final class SyncManager: ObservableObject {
             }
         } catch {
             // Timetable availability is optional; never turn a successful agenda sync into a failure.
-            print("LibrusSync: nie udało się sprawdzić planu lekcji: \\(error.localizedDescription)")
+            print("LibrusSync: nie udało się sprawdzić planu lekcji: \(error.localizedDescription)")
         }
     }
 
