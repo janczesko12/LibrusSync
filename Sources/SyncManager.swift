@@ -267,6 +267,64 @@ final class SyncManager: ObservableObject {
         }
     }
 
+    /// Checks the currently published school timetable during a permitted app refresh.
+    /// iOS decides when background refresh runs, so this is best-effort rather than real-time.
+    private func checkTimetableUpdates() async {
+        guard let login = KeychainStore.read(key: "librusLogin"),
+              let password = KeychainStore.read(key: "librusPassword") else { return }
+
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        let today = calendar.startOfDay(for: Date())
+        let weekday = calendar.component(.weekday, from: today)
+        let mondayOffset = (weekday + 5) % 7
+        guard let monday = calendar.date(byAdding: .day, value: -mondayOffset, to: today) else { return }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd"
+        let cacheKey = "librusSync.timetable.\\(formatter.string(from: monday))"
+
+        do {
+            // apply(_:) is called after a successful Librus login/sync, so the session is ready.
+            let freshDays = try await client.fetchTimetable(weekStarting: monday)
+            let previousDays = defaults.data(forKey: cacheKey)
+                .flatMap { try? JSONDecoder().decode([TimetableDay].self, from: $0) }
+
+            if let previousDays {
+                func fingerprint(_ lesson: LessonPeriod) -> String {
+                    "\\(lesson.id)|\\(lesson.subject)|\\(lesson.teacherAndRoom)|\\(lesson.startTime)|\\(lesson.endTime)|\\(lesson.isSubstitution)"
+                }
+                let known = Set(previousDays.flatMap(\\.lessons).filter(\\.isSubstitution).map(fingerprint))
+                let added = freshDays.flatMap(\\.lessons)
+                    .filter(\\.isSubstitution)
+                    .filter { !known.contains(fingerprint($0)) }
+
+                if !added.isEmpty {
+                    let first = added[0]
+                    await LocalNotificationService.notify(
+                        title: "Dodano zastępstwo",
+                        body: "\\(first.subject) • wykryto \\(added.count) nowych lub zmienionych zastępstw. Sprawdź plan lekcji.",
+                        identifier: "timetable-substitution-\\(formatter.string(from: monday))-\\(added.map(\\.id).sorted().joined(separator: "-"))"
+                    )
+                } else if previousDays != freshDays {
+                    await LocalNotificationService.notify(
+                        title: "Zaktualizowano plan lekcji",
+                        body: "Librus opublikował zmiany w planie na bieżący tydzień.",
+                        identifier: "timetable-update-\\(formatter.string(from: monday))-\\(Int(Date().timeIntervalSince1970))"
+                    )
+                }
+            }
+
+            if let encoded = try? JSONEncoder().encode(freshDays) {
+                defaults.set(encoded, forKey: cacheKey)
+            }
+        } catch {
+            // Timetable availability is optional; never turn a successful agenda sync into a failure.
+            print("LibrusSync: nie udało się sprawdzić planu lekcji: \\(error.localizedDescription)")
+        }
+    }
+
     private static func ensureWidgetCredentials() -> String {
         if let id = KeychainStore.read(key: "widgetRemoteID"),
            let readToken = KeychainStore.read(key: "widgetRemoteReadToken"),
