@@ -1233,7 +1233,7 @@ enum CafeteriaMenuService {
             await LocalNotificationService.notify(
                 title: "Nowy jadłospis szkolny",
                 body: "Na stronie SP1 Bieruń pojawił się nowy jadłospis. Otwórz LibrusSync → Stołówka.",
-                identifier: "menu-\\(latestURL.lastPathComponent)-\\(data.count)"
+                identifier: "menu-\(latestURL.lastPathComponent)-\(data.count)"
             )
         }
         return true
@@ -1852,7 +1852,7 @@ private struct TimetableView: View {
 
     private func dateHasSubstitution(_ date: Date) -> Bool {
         days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })?
-            .lessons.contains(where: \\.isSubstitution) ?? false
+            .lessons.contains(where: \.isSubstitution) ?? false
     }
 
     private var selectedDayHeader: some View {
@@ -2114,24 +2114,24 @@ private struct TimetableView: View {
             days = freshDays
             if let previousDays {
                 func lessonFingerprint(_ lesson: LessonPeriod) -> String {
-                    "\\(lesson.id)|\\(lesson.subject)|\\(lesson.teacherAndRoom)|\\(lesson.startTime)|\\(lesson.endTime)|\\(lesson.isSubstitution)"
+                    "\(lesson.id)|\(lesson.subject)|\(lesson.teacherAndRoom)|\(lesson.startTime)|\(lesson.endTime)|\(lesson.isSubstitution)"
                 }
-                let oldSubstitutions = Set(previousDays.flatMap(\\.lessons).filter(\\.isSubstitution).map(lessonFingerprint))
-                let newSubstitutions = freshDays.flatMap(\\.lessons)
-                    .filter(\\.isSubstitution)
+                let oldSubstitutions = Set(previousDays.flatMap(\.lessons).filter(\.isSubstitution).map(lessonFingerprint))
+                let newSubstitutions = freshDays.flatMap(\.lessons)
+                    .filter(\.isSubstitution)
                     .filter { !oldSubstitutions.contains(lessonFingerprint($0)) }
                 if !newSubstitutions.isEmpty {
                     let first = newSubstitutions[0]
                     await LocalNotificationService.notify(
                         title: "Dodano zastępstwo",
-                        body: "\\(first.subject) • \\(newSubstitutions.count) nowe/zmienione zastępstwa w planie. Sprawdź szczegóły w LibrusSync.",
-                        identifier: "substitution-\\(cacheKey)-\\(newSubstitutions.map(\\.id).sorted().joined(separator: "-"))"
+                        body: "\(first.subject) • \(newSubstitutions.count) nowe/zmienione zastępstwa w planie. Sprawdź szczegóły w LibrusSync.",
+                        identifier: "substitution-\(cacheKey)-\(newSubstitutions.map(\.id).sorted().joined(separator: "-"))"
                     )
                 } else if previousDays != freshDays {
                     await LocalNotificationService.notify(
                         title: "Zmieniono plan lekcji",
                         body: "LibrusSync wykrył aktualizację planu na wybrany tydzień.",
-                        identifier: "timetable-\\(cacheKey)-\\(Int(Date().timeIntervalSince1970))"
+                        identifier: "timetable-\(cacheKey)-\(Int(Date().timeIntervalSince1970))"
                     )
                 }
             }
