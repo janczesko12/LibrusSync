@@ -187,14 +187,14 @@ enum LocalNotificationService {
         content.sound = .default
         content.threadIdentifier = "librussync-updates"
         let request = UNNotificationRequest(
-            identifier: "librussync-update-\\(identifier)",
+            identifier: "librussync-update-\(identifier)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
-            print("LibrusSync: nie udało się wysłać alertu: \\(error.localizedDescription)")
+            print("LibrusSync: nie udało się wysłać alertu: \(error.localizedDescription)")
         }
     }
 
