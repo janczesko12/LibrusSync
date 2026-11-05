@@ -148,7 +148,9 @@ enum LocalNotificationService {
     static func notify(for item: AgendaEvent, updated: Bool) async {
         guard await requestAuthorization() else { return }
         let content = UNMutableNotificationContent()
-        content.title = updated ? "Zmieniono wpis w terminarzu" : "Nowy wpis w terminarzu"
+        content.title = updated
+            ? "Zmieniono wpis w Librusie"
+            : (item.isAssessment ? "Nowy sprawdzian lub kartkówka" : "Nowy wpis w Librusie")
         let locale = Locale(identifier: "pl_PL")
         let date = item.startDate.formatted(.dateTime.locale(locale).weekday(.wide).day().month(.wide).year())
         let timing: String
