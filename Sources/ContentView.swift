@@ -38,6 +38,8 @@ struct ContentView: View {
             settingsTab
         }
         .tint(violet)
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -159,16 +161,18 @@ struct ContentView: View {
 
     private func pageScrollView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 content()
             }
             .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 30)
-            .frame(maxWidth: 680)
+            .padding(.top, 18)
+            .padding(.bottom, 34)
+            .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background {
+            LibrusScreenBackground(tint: violet)
+        }
         .toolbar(.hidden, for: .navigationBar)
     }
 
@@ -195,58 +199,114 @@ struct ContentView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 11) {
-            ZStack {
-                Image("AppIcon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 45, height: 45)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        HStack(spacing: 13) {
+            Image("AppIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 54, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
+                }
+                .shadow(color: violet.opacity(0.18), radius: 12, x: 0, y: 6)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("TWÓJ SZKOLNY ASYSTENT")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(1.3)
+                    .foregroundStyle(violet)
+                Text("LibrusSync")
+                    .font(.system(size: 25, weight: .heavy, design: .rounded))
+                    .foregroundStyle(ink)
+                Text("Wszystko szkolne. W jednym miejscu.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("LibrusSync").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundStyle(ink)
-                Text("Twój szkolny plan w jednym miejscu").font(.caption).foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            VStack(spacing: 5) {
+                Circle()
+                    .fill(syncManager.isSyncing ? Color.orange : (syncManager.isLibrusConnected ? Color.green : Color.gray))
+                    .frame(width: 9, height: 9)
+                    .shadow(color: (syncManager.isSyncing ? Color.orange : (syncManager.isLibrusConnected ? Color.green : Color.gray)).opacity(0.45), radius: 5)
+                Text(syncManager.isSyncing ? "SYNC" : (syncManager.isLibrusConnected ? "ONLINE" : "OFFLINE"))
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .tracking(0.7)
+                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            HStack(spacing: 5) {
-                Circle().fill(syncManager.errorMessage == nil ? Color.green : Color.orange).frame(width: 7, height: 7)
-                Text(syncManager.isSyncing ? "Pracuję" : "Gotowy").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10).padding(.vertical, 7)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
+            .padding(.horizontal, 11)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.05), lineWidth: 1))
         }
+        .padding(.vertical, 3)
     }
 
     private var heroCard: some View {
         ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [Color(red: 0.27, green: 0.23, blue: 0.76), Color(red: 0.47, green: 0.31, blue: 0.91), Color(red: 0.61, green: 0.40, blue: 0.93)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-            Circle().fill(.white.opacity(0.09)).frame(width: 180, height: 180).offset(x: 45, y: -65)
-            Circle().stroke(.white.opacity(0.13), lineWidth: 1).frame(width: 138, height: 138).offset(x: 20, y: 5)
-            VStack(alignment: .leading, spacing: 15) {
+            RoundedRectangle(cornerRadius: 31, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.07, green: 0.10, blue: 0.23),
+                            Color(red: 0.17, green: 0.19, blue: 0.47),
+                            Color(red: 0.34, green: 0.25, blue: 0.78)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Circle().fill(Color.white.opacity(0.075)).frame(width: 215, height: 215).offset(x: 82, y: -100)
+            Circle().stroke(Color.white.opacity(0.13), lineWidth: 1).frame(width: 165, height: 165).offset(x: 48, y: -48)
+            Circle().stroke(Color.white.opacity(0.08), lineWidth: 1).frame(width: 118, height: 118).offset(x: 24, y: -24)
+
+            VStack(alignment: .leading, spacing: 19) {
                 HStack {
-                    Label("TWOJA SYNCHRONIZACJA", systemImage: "sparkles").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.white.opacity(0.8))
+                    HStack(spacing: 7) {
+                        Image(systemName: "sparkles")
+                        Text("TWÓJ SZKOLNY HUB")
+                    }
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .tracking(1.05)
+                    .foregroundStyle(.white.opacity(0.88))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(.white.opacity(0.12), in: Capsule())
                     Spacer()
-                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 20, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                    Image(systemName: "graduationcap.fill")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 48, height: 48)
+                        .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
-                Text(syncManager.isLibrusConnected ? "Cześć, \(displayFirstName)!" : "Koniec z ręcznym przepisywaniem.")
-                    .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
-                Text(syncManager.isLibrusConnected
-                     ? "Librus Synergia jest połączony. Nowe wpisy mogą trafiać do Kalendarza Apple."
-                     : "Połącz dziennik i Kalendarz Apple, a LibrusSync zajmie się resztą.")
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.84)).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(syncManager.isLibrusConnected ? "Cześć,\n\(displayFirstName)!" : "Szkoła. Plan.\nWszystko pod ręką.")
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(syncManager.isLibrusConnected
+                         ? "Twój Librus jest połączony. Sprawdzaj lekcje, wydarzenia i zmiany w jednym miejscu."
+                         : "Połącz Librusa, aby zobaczyć plan, wydarzenia i synchronizować je z kalendarzem.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.78))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 9) {
                     metricPill(value: "\(syncManager.recentEvents.count)", label: "wydarzeń")
                     metricPill(value: syncManager.lastSync.map { $0.formatted(date: .omitted, time: .shortened) } ?? "—", label: "ostatnia sync.")
+                    Spacer(minLength: 0)
                 }
             }
-            .padding(20)
+            .padding(22)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: violet.opacity(0.2), radius: 18, x: 0, y: 9)
+        .clipShape(RoundedRectangle(cornerRadius: 31, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 31, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: Color(red: 0.22, green: 0.18, blue: 0.62).opacity(0.27), radius: 24, x: 0, y: 13)
     }
 
     private var countdownCard: some View {
@@ -294,8 +354,8 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(17)
+        .lsSurface(24)
     }
 
     private var nextAssessment: AgendaEvent? {
@@ -385,8 +445,8 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(18)
+        .lsSurface(25)
     }
 
     private func dashboardMetric(value: String, label: String, symbol: String) -> some View {
@@ -407,7 +467,8 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
         .padding(10)
-        .background(violet.opacity(0.07), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.primary.opacity(0.045), lineWidth: 1))
     }
 
     private var reminderSettings: some View {
@@ -443,7 +504,7 @@ struct ContentView: View {
                 )
             }
             .padding(.horizontal, 14)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .lsSurface(22)
 
             VStack(spacing: 10) {
                 Picker("Godzina wcześniejszych przypomnień", selection: $reminderAdvanceHour) {
@@ -459,7 +520,7 @@ struct ContentView: View {
             }
             .pickerStyle(.menu)
             .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .lsSurface(18)
 
             Text("Powiadomienia są planowane lokalnie na telefonie. Zmiana ustawień przelicza alerty. iOS może ograniczyć działanie aplikacji w tle, ale wcześniej zaplanowane powiadomienia nie wymagają kolejnej synchronizacji.")
                 .font(.caption)
@@ -515,7 +576,7 @@ struct ContentView: View {
                 Divider().padding(.leading, 68)
                 appleCalendarCard
             }
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+            .lsSurface(25)
         }
     }
 
@@ -633,7 +694,8 @@ struct ContentView: View {
                     Image(systemName: "arrow.right").font(.headline.weight(.semibold))
                 }
                 .foregroundStyle(.white).padding(17)
-                .background(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.23), Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .background(LinearGradient(colors: [Color(red: 0.22, green: 0.19, blue: 0.62), Color(red: 0.43, green: 0.30, blue: 0.88), Color(red: 0.31, green: 0.47, blue: 0.94)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 21, style: .continuous).strokeBorder(Color.white.opacity(0.17), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
@@ -751,7 +813,7 @@ struct ContentView: View {
                 }
             }
             .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .lsSurface(17)
 
             Picker("Filtr wydarzeń", selection: $eventFilter) {
                 Text("Wszystkie").tag("Wszystkie")
@@ -777,7 +839,7 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(18)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .lsSurface(24)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(filteredUpcomingEvents.prefix(30).enumerated()), id: \.element.id) { index, event in
@@ -883,29 +945,67 @@ private struct EventRow: View {
     let accent: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous).fill(accent.opacity(0.1)).frame(width: 43, height: 45)
-                VStack(spacing: 1) {
-                    Text(event.startDate.formatted(.dateTime.day())).font(.system(size: 18, weight: .bold, design: .rounded))
-                    Text(event.startDate.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: "pl_PL"))).uppercased())
-                        .font(.system(size: 9, weight: .bold))
+        HStack(alignment: .center, spacing: 13) {
+            VStack(spacing: 2) {
+                Text(event.startDate.formatted(.dateTime.day()))
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                Text(event.startDate.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: "pl_PL"))).uppercased())
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
+            }
+            .foregroundStyle(accent)
+            .frame(width: 54, height: 60)
+            .background(
+                LinearGradient(colors: [accent.opacity(0.17), accent.opacity(0.07)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+            )
+            .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(accent.opacity(0.12), lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    if event.isAssessment {
+                        Text("SPRAWDZIAN")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.7)
+                            .foregroundStyle(accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(accent.opacity(0.11), in: Capsule())
+                    }
+                    Text(event.dateLabel)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .foregroundStyle(accent)
+                Text(event.title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                Label(event.timeLabel, systemImage: event.isAllDay ? "sun.max.fill" : "clock.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(accent)
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(event.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary).lineLimit(3)
-                Text(event.dateLabel).font(.caption).foregroundStyle(.secondary)
-                Label(event.timeLabel, systemImage: event.isAllDay ? "sun.max" : "clock")
-                    .font(.caption2.weight(.medium)).foregroundStyle(accent)
+
+            Spacer(minLength: 3)
+
+            VStack(alignment: .trailing, spacing: 5) {
+                Image(systemName: event.isAssessment ? "graduationcap.fill" : "calendar")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(event.countdownLabel)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Spacer(minLength: 0)
-            Image(systemName: "calendar").font(.caption).foregroundStyle(.tertiary).padding(.top, 3)
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
     }
 }
 
+
+private struct CafeteriaView: View {
 
 private struct CafeteriaView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -963,13 +1063,8 @@ private struct CafeteriaView: View {
                             }
                             .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
                     }
-                    .padding(14)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.primary.opacity(0.045), lineWidth: 1)
-                    }
+                    .padding(15)
+                    .lsSurface(25)
                 } else {
                     emptyState
                 }
@@ -990,7 +1085,7 @@ private struct CafeteriaView: View {
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background { LibrusScreenBackground(tint: green) }
         .task {
             await loadMenu(forceSourceCheck: false)
         }
@@ -1005,75 +1100,73 @@ private struct CafeteriaView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("SP1 BIERUŃ", systemImage: "building.2.fill")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(.white.opacity(0.82))
-                Spacer()
-                Image(systemName: "fork.knife.circle.fill")
-                    .font(.system(size: 34, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.93))
-            }
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.045, green: 0.25, blue: 0.22), green, mint],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Circle().fill(.white.opacity(0.08)).frame(width: 190, height: 190).offset(x: 72, y: -86)
+            Circle().stroke(.white.opacity(0.14), lineWidth: 1).frame(width: 145, height: 145).offset(x: 45, y: -44)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Co dziś jemy?")
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Menu szkolnej stołówki w jednym miejscu")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-            }
-
-            HStack(spacing: 9) {
-                Button {
-                    Task { await loadMenu(forceSourceCheck: true) }
-                } label: {
-                    HStack(spacing: 7) {
-                        if isLoading {
-                            ProgressView().tint(green)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        Text(isLoading ? "Sprawdzanie…" : "Odśwież jadłospis")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(green)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .background(.white, in: Capsule())
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Label("STOŁÓWKA • SP1 BIERUŃ", systemImage: "fork.knife")
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .tracking(1)
+                        .foregroundStyle(.white.opacity(0.86))
+                    Spacer()
+                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
+                        .font(.system(size: 25, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.93))
+                        .frame(width: 48, height: 48)
+                        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
-                .disabled(isLoading)
 
-                Link(destination: menuURLForOpening) {
-                    Image(systemName: "arrow.up.right")
-                        .font(.subheadline.weight(.bold))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Co dziś\njemy?")
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
-                        .frame(width: 42, height: 42)
-                        .background(.white.opacity(0.17), in: Circle())
+                    Text("Aktualny jadłospis szkolny — zawsze pod ręką.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.82))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .accessibilityLabel("Otwórz oryginalny jadłospis PDF")
+
+                HStack(spacing: 9) {
+                    Button {
+                        Task { await loadMenu(forceSourceCheck: true) }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isLoading { ProgressView().tint(green) }
+                            else { Image(systemName: "arrow.clockwise") }
+                            Text(isLoading ? "Sprawdzanie…" : "Sprawdź nowe menu")
+                        }
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(green)
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 12)
+                        .background(.white, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLoading)
+
+                    Link(destination: menuURLForOpening) {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 13, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(.white.opacity(0.16), in: Circle())
+                    }
+                    .accessibilityLabel("Otwórz oryginalny jadłospis PDF")
+                }
             }
+            .padding(22)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [green, mint],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
-        .overlay(alignment: .topTrailing) {
-            Circle()
-                .fill(.white.opacity(0.08))
-                .frame(width: 150, height: 150)
-                .offset(x: 50, y: -65)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        }
-        .shadow(color: green.opacity(0.17), radius: 16, x: 0, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        .shadow(color: green.opacity(0.25), radius: 22, x: 0, y: 12)
     }
 
     private var statusCard: some View {
@@ -1100,8 +1193,7 @@ private struct CafeteriaView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .lsSurface(21)
     }
 
     private var emptyState: some View {
@@ -1127,8 +1219,7 @@ private struct CafeteriaView: View {
         }
         .padding(26)
         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .lsSurface(24)
     }
 
     @MainActor
@@ -1684,7 +1775,7 @@ private struct TimetableView: View {
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background { LibrusScreenBackground(tint: violet) }
         .task {
             await loadTimetable(force: false)
         }
@@ -1699,58 +1790,80 @@ private struct TimetableView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Label("TWÓJ SZKOLNY TYDZIEŃ", systemImage: "calendar")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.15)
-                    .foregroundStyle(.white.opacity(0.78))
-                Spacer()
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 29, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.88))
-            }
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.10, blue: 0.25),
+                        Color(red: 0.22, green: 0.20, blue: 0.61),
+                        Color(red: 0.39, green: 0.30, blue: 0.88)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+            Circle().fill(.white.opacity(0.07)).frame(width: 200, height: 200).offset(x: 75, y: -95)
+            Circle().stroke(.white.opacity(0.13), lineWidth: 1).frame(width: 148, height: 148).offset(x: 40, y: -42)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Plan lekcji")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Wszystkie zajęcia, godziny i sale w jednym miejscu.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            VStack(alignment: .leading, spacing: 17) {
+                HStack {
+                    HStack(spacing: 7) {
+                        Image(systemName: "calendar.badge.clock")
+                        Text("TWÓJ SZKOLNY TYDZIEŃ")
+                    }
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(1.05)
+                    .foregroundStyle(.white.opacity(0.87))
+                    Spacer()
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .frame(width: 48, height: 48)
+                        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
 
-            HStack(spacing: 8) {
-                Label("\(selectedLessons.count) lekcji", systemImage: "list.number")
-                Text("•")
-                Label("\(selectedLessons.filter { $0.isSubstitution }.count) zastępstw", systemImage: "arrow.triangle.2.circlepath")
-                Text("•")
-                Text(selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Plan lekcji")
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Wszystkie zajęcia, sale i zastępstwa w jednym widoku.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 8) {
+                    timetableMetric(value: "\(selectedLessons.count)", label: "LEKCJI", symbol: "list.number")
+                    timetableMetric(value: "\(selectedLessons.filter { $0.isSubstitution }.count)", label: "ZASTĘPSTW", symbol: "arrow.triangle.2.circlepath")
+                    timetableMetric(value: selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))), label: "WYBRANY DZIEŃ", symbol: "calendar")
+                }
             }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 8)
-            .background(.white.opacity(0.16), in: Capsule())
+            .padding(22)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Color(red: 0.28, green: 0.24, blue: 0.77), violet, lilac],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
-        .overlay(alignment: .topTrailing) {
-            Circle()
-                .stroke(.white.opacity(0.13), lineWidth: 1)
-                .frame(width: 112, height: 112)
-                .offset(x: 23, y: -38)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        .shadow(color: violet.opacity(0.25), radius: 22, x: 0, y: 12)
+    }
+
+    private func timetableMetric(value: String, label: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.72))
+            Text(value)
+                .font(.system(size: 17, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.system(size: 7, weight: .heavy, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white.opacity(0.62))
+                .lineLimit(1)
         }
-        .shadow(color: violet.opacity(0.17), radius: 16, x: 0, y: 8)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .padding(10)
+        .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(.white.opacity(0.09), lineWidth: 1))
     }
 
     private var weekPicker: some View {
@@ -1804,8 +1917,7 @@ private struct TimetableView: View {
             .accessibilityLabel("Odśwież plan lekcji")
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .lsSurface(21)
     }
 
     private var dayPicker: some View {
@@ -1858,26 +1970,35 @@ private struct TimetableView: View {
     }
 
     private var selectedDayHeader: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(fullDate(selectedDate))
-                    .font(.title3.weight(.bold))
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(.primary)
                 Text(Calendar.current.isDateInToday(selectedDate) ? "Twój plan na dzisiaj" : "Plan na wybrany dzień")
-                    .font(.caption)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if Calendar.current.isDateInToday(selectedDate) {
+            if selectedLessons.contains(where: { $0.isSubstitution }) {
+                Label("ZASTĘPSTWA", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.35)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 7)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+            } else if Calendar.current.isDateInToday(selectedDate) {
                 Text("DZISIAJ")
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.6)
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.7)
                     .foregroundStyle(violet)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 7)
                     .background(violet.opacity(0.1), in: Capsule())
             }
         }
+        .padding(.horizontal, 2)
     }
 
     @ViewBuilder
@@ -1946,83 +2067,99 @@ private struct TimetableView: View {
     private func lessonCard(_ lesson: LessonPeriod) -> some View {
         let substitution = lesson.isSubstitution
         let current = isCurrentLesson(lesson)
-        let accent = substitution ? Color.orange : violet
-        return HStack(spacing: 13) {
+        let accent = substitution ? Color.orange : (current ? Color.green : violet)
+
+        return HStack(spacing: 14) {
             VStack(spacing: 4) {
-                Text("\(lesson.number)")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text(String(format: "%02d", lesson.number))
+                    .font(.system(size: 21, weight: .heavy, design: .rounded))
                     .foregroundStyle(accent)
                 Text("LEKCJA")
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(0.5)
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .tracking(0.65)
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 48, height: 54)
-            .background(violet.opacity(0.09), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(width: 55, height: 66)
+            .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(accent.opacity(0.13), lineWidth: 1))
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text(lesson.subject)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+
                 HStack(spacing: 6) {
                     if substitution {
                         Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 9, weight: .bold))
-                        .tracking(0.35)
-                        .foregroundStyle(Color.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.12), in: Capsule())
-                        .accessibilityLabel("Lekcja odbywa się w ramach zastępstwa")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.35)
+                            .foregroundStyle(Color.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.orange.opacity(0.13), in: Capsule())
                     }
                     if current {
-                        Text("TERAZ")
-                            .font(.system(size: 9, weight: .heavy))
-                            .tracking(0.4)
+                        Label("TERAZ", systemImage: "dot.radiowaves.left.and.right")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.35)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background(Color.green, in: Capsule())
                     }
                 }
+
                 if !lesson.teacherAndRoom.isEmpty {
-                    Text(lesson.teacherAndRoom)
-                        .font(.caption)
+                    Label(lesson.teacherAndRoom, systemImage: "person.fill")
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
 
-            Spacer(minLength: 3)
+            Spacer(minLength: 2)
 
             VStack(alignment: .trailing, spacing: 4) {
                 Text(lesson.startTime.isEmpty ? "—" : lesson.startTime)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.primary)
                     .monospacedDigit()
                 Text(lesson.endTime.isEmpty ? "" : lesson.endTime)
-                    .font(.caption.weight(.medium))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                Capsule()
+                    .fill(accent.opacity(0.6))
+                    .frame(width: 27, height: 3)
+                    .padding(.top, 3)
             }
         }
-        .padding(13)
+        .padding(14)
         .background(
-            current ? Color.green.opacity(0.075) :
-                (substitution ? Color.orange.opacity(0.075) : Color(uiColor: .secondarySystemGroupedBackground)),
-            in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(uiColor: .secondarySystemGroupedBackground),
+                            accent.opacity(substitution || current ? 0.10 : 0.025)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(accent)
-                .frame(width: substitution ? 5 : 4)
-                .padding(.vertical, 11)
+                .frame(width: 5)
+                .padding(.vertical, 13)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(substitution ? Color.orange.opacity(0.35) : (current ? Color.green.opacity(0.3) : Color.primary.opacity(0.045)), lineWidth: substitution || current ? 1.2 : 1)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(substitution || current ? 0.27 : 0.07), lineWidth: substitution || current ? 1.3 : 1)
         }
+        .shadow(color: accent.opacity(substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
         .animation(.snappy(duration: 0.22), value: current)
         .animation(.snappy(duration: 0.22), value: substitution)
     }
@@ -2148,5 +2285,56 @@ private struct TimetableView: View {
                 errorMessage = "Nie udało się odświeżyć danych. Wyświetlam ostatnio zapisany plan."
             }
         }
+    }
+}
+
+
+// MARK: - LibrusSync visual system
+
+private struct LibrusScreenBackground: View {
+    let tint: Color
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color(uiColor: .systemGroupedBackground)
+            LinearGradient(
+                colors: [tint.opacity(0.075), .clear, Color.blue.opacity(0.025)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Circle()
+                .fill(tint.opacity(0.075))
+                .frame(width: 250, height: 250)
+                .blur(radius: 58)
+                .offset(x: 112, y: -125)
+            Circle()
+                .fill(Color.blue.opacity(0.035))
+                .frame(width: 220, height: 220)
+                .blur(radius: 64)
+                .offset(x: -180, y: 430)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}
+
+private extension View {
+    func lsSurface(_ radius: CGFloat = 23) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.62), Color.primary.opacity(0.045)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .shadow(color: Color.black.opacity(0.045), radius: 15, x: 0, y: 7)
     }
 }
