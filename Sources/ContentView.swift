@@ -38,6 +38,8 @@ struct ContentView: View {
             settingsTab
         }
         .tint(violet)
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -159,16 +161,18 @@ struct ContentView: View {
 
     private func pageScrollView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 content()
             }
             .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 30)
-            .frame(maxWidth: 680)
+            .padding(.top, 18)
+            .padding(.bottom, 34)
+            .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background {
+            LibrusScreenBackground(tint: violet)
+        }
         .toolbar(.hidden, for: .navigationBar)
     }
 
@@ -195,1562 +199,126 @@ struct ContentView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 11) {
-            ZStack {
-                Image("AppIcon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 45, height: 45)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        HStack(spacing: 13) {
+            Image("AppIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 54, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
+                }
+                .shadow(color: violet.opacity(0.18), radius: 12, x: 0, y: 6)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("TWÓJ SZKOLNY ASYSTENT")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(1.3)
+                    .foregroundStyle(violet)
+                Text("LibrusSync")
+                    .font(.system(size: 25, weight: .heavy, design: .rounded))
+                    .foregroundStyle(ink)
+                Text("Wszystko szkolne. W jednym miejscu.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("LibrusSync").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundStyle(ink)
-                Text("Twój szkolny plan w jednym miejscu").font(.caption).foregroundStyle(.secondary)
+
+            Spacer(minLength: 4)
+
+            VStack(spacing: 5) {
+                Circle()
+                    .fill(syncManager.isSyncing ? Color.orange : (syncManager.isLibrusConnected ? Color.green : Color.gray))
+                    .frame(width: 9, height: 9)
+                    .shadow(color: (syncManager.isSyncing ? Color.orange : (syncManager.isLibrusConnected ? Color.green : Color.gray)).opacity(0.45), radius: 5)
+                Text(syncManager.isSyncing ? "SYNC" : (syncManager.isLibrusConnected ? "ONLINE" : "OFFLINE"))
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .tracking(0.7)
+                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            HStack(spacing: 5) {
-                Circle().fill(syncManager.errorMessage == nil ? Color.green : Color.orange).frame(width: 7, height: 7)
-                Text(syncManager.isSyncing ? "Pracuję" : "Gotowy").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10).padding(.vertical, 7)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
+            .padding(.horizontal, 11)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.05), lineWidth: 1))
         }
+        .padding(.vertical, 3)
     }
 
     private var heroCard: some View {
         ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(LinearGradient(
-                    colors: [Color(red: 0.27, green: 0.23, blue: 0.76), Color(red: 0.47, green: 0.31, blue: 0.91), Color(red: 0.61, green: 0.40, blue: 0.93)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
+                    colors: [
+                        Color(red: 0.08, green: 0.10, blue: 0.25),
+                        Color(red: 0.22, green: 0.20, blue: 0.61),
+                        Color(red: 0.39, green: 0.30, blue: 0.88)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 ))
-            Circle().fill(.white.opacity(0.09)).frame(width: 180, height: 180).offset(x: 45, y: -65)
-            Circle().stroke(.white.opacity(0.13), lineWidth: 1).frame(width: 138, height: 138).offset(x: 20, y: 5)
-            VStack(alignment: .leading, spacing: 15) {
+            Circle().fill(.white.opacity(0.07)).frame(width: 200, height: 200).offset(x: 75, y: -95)
+            Circle().stroke(.white.opacity(0.13), lineWidth: 1).frame(width: 148, height: 148).offset(x: 40, y: -42)
+
+            VStack(alignment: .leading, spacing: 17) {
                 HStack {
-                    Label("TWOJA SYNCHRONIZACJA", systemImage: "sparkles").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.white.opacity(0.8))
+                    HStack(spacing: 7) {
+                        Image(systemName: "calendar.badge.clock")
+                        Text("TWÓJ SZKOLNY TYDZIEŃ")
+                    }
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(1.05)
+                    .foregroundStyle(.white.opacity(0.87))
                     Spacer()
-                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 20, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .frame(width: 48, height: 48)
+                        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
-                Text(syncManager.isLibrusConnected ? "Cześć, \(displayFirstName)!" : "Koniec z ręcznym przepisywaniem.")
-                    .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
-                Text(syncManager.isLibrusConnected
-                     ? "Librus Synergia jest połączony. Nowe wpisy mogą trafiać do Kalendarza Apple."
-                     : "Połącz dziennik i Kalendarz Apple, a LibrusSync zajmie się resztą.")
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.84)).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    metricPill(value: "\(syncManager.recentEvents.count)", label: "wydarzeń")
-                    metricPill(value: syncManager.lastSync.map { $0.formatted(date: .omitted, time: .shortened) } ?? "—", label: "ostatnia sync.")
-                }
-            }
-            .padding(20)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: violet.opacity(0.2), radius: 18, x: 0, y: 9)
-    }
 
-    private var countdownCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "hourglass")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(violet)
-                    .frame(width: 42, height: 42)
-                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Odliczanie do sprawdzianu")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(ink)
-                    Text("Na podstawie wpisów wykrytych w Librusie")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            if let event = nextAssessment {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(event.title)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(ink)
-                            .lineLimit(2)
-                        Text("\(event.dateLabel) · \(event.timeLabel)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 6)
-                    Text(event.countdownLabel)
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Plan lekcji")
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(LinearGradient(colors: [violet, lilac], startPoint: .leading, endPoint: .trailing), in: Capsule())
+                    Text("Wszystkie zajęcia, sale i zastępstwa w jednym widoku.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            } else {
-                Text("Gdy LibrusSync wykryje wpis opisany jako sprawdzian, kartkówka, test lub praca klasowa, zobaczysz tutaj odliczanie.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    timetableMetric(value: "(selectedLessons.count)", label: "LEKCJI", symbol: "list.number")
+                    timetableMetric(value: "(selectedLessons.filter { $0.isSubstitution }.count)", label: "ZASTĘPSTW", symbol: "arrow.triangle.2.circlepath")
+                    timetableMetric(value: selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))), label: "WYBRANY DZIEŃ", symbol: "calendar")
+                }
             }
+            .padding(22)
         }
-        .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        .shadow(color: violet.opacity(0.25), radius: 22, x: 0, y: 12)
     }
 
-    private var nextAssessment: AgendaEvent? {
-        syncManager.recentEvents.first(where: { $0.isAssessment })
-    }
-
-    private var nextSevenDaysEvents: [AgendaEvent] {
-        let now = Date()
-        let startOfToday = Calendar.current.startOfDay(for: now)
-        let end = Calendar.current.date(byAdding: .day, value: 7, to: startOfToday) ?? now.addingTimeInterval(7 * 24 * 60 * 60)
-        return syncManager.recentEvents
-            .filter { $0.startDate < end && $0.endDate >= now }
-            .sorted { $0.startDate < $1.startDate }
-    }
-
-    private var busiestUpcomingDay: (date: Date, count: Int)? {
-        let grouped = Dictionary(grouping: nextSevenDaysEvents, by: { Calendar.current.startOfDay(for: $0.startDate) })
-        guard let busiest = grouped.max(by: { $0.value.count < $1.value.count }) else { return nil }
-        return (date: busiest.key, count: busiest.value.count)
-    }
-
-    private var weeklyOverview: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 9) {
-                Image(systemName: "sparkles.rectangle.stack.fill")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(violet)
-                    .frame(width: 42, height: 42)
-                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Co mnie czeka?")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(ink)
-                    Text("Podsumowanie najbliższych 7 dni")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 9) {
-                dashboardMetric(value: "\(nextSevenDaysEvents.count)", label: "Wydarzenia", symbol: "calendar")
-                dashboardMetric(value: "\(nextSevenDaysEvents.filter(\.isAssessment).count)", label: "Sprawdziany", symbol: "graduationcap.fill")
-                dashboardMetric(
-                    value: busiestUpcomingDay.map { $0.date.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.abbreviated).day()) } ?? "—",
-                    label: "Najbardziej zajęty dzień",
-                    symbol: "chart.bar.fill"
-                )
-            }
-
-            if nextSevenDaysEvents.isEmpty {
-                Text("Brak nadchodzących wydarzeń w tym tygodniu. Po synchronizacji zobaczysz tu najbliższe terminy.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, 3)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(nextSevenDaysEvents.prefix(3).enumerated()), id: \.element.id) { index, event in
-                        HStack(spacing: 10) {
-                            Image(systemName: event.isAssessment ? "graduationcap.fill" : "calendar")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(event.isAssessment ? violet : Color.blue)
-                                .frame(width: 34, height: 34)
-                                .background((event.isAssessment ? violet : Color.blue).opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(event.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(ink)
-                                    .lineLimit(1)
-                                Text(event.startDate.formatted(.dateTime.locale(Locale(identifier: "pl_PL")).weekday(.wide).day().month(.abbreviated)) + " · " + event.timeLabel)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer(minLength: 3)
-                            Text(event.countdownLabel)
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(violet)
-                                .lineLimit(1)
-                        }
-                        .padding(.vertical, 9)
-                        if index < min(nextSevenDaysEvents.count, 3) - 1 {
-                            Divider().padding(.leading, 44)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    private func dashboardMetric(value: String, label: String, symbol: String) -> some View {
+    private func timetableMetric(value: String, label: String, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: symbol)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(violet)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.72))
             Text(value)
                 .font(.system(size: 17, weight: .heavy, design: .rounded))
-                .foregroundStyle(ink)
+                .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .font(.system(size: 7, weight: .heavy, design: .rounded))
+                .tracking(0.55)
+                .foregroundStyle(.white.opacity(0.62))
+                .lineLimit(1)
         }
-        .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
         .padding(10)
-        .background(violet.opacity(0.07), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-    }
-
-    private var reminderSettings: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeading("Przypomnienia", subtitle: "Wybierz, kiedy iPhone ma Ci przypominać")
-            VStack(spacing: 0) {
-                reminderToggle(
-                    title: "Tydzień wcześniej",
-                    subtitle: "7 dni przed wydarzeniem",
-                    symbol: "calendar",
-                    isOn: $reminderWeekBefore
-                )
-                Divider().padding(.leading, 56)
-                reminderToggle(
-                    title: "Dwa dni wcześniej",
-                    subtitle: "Domyślne przypomnienie",
-                    symbol: "calendar.badge.clock",
-                    isOn: $reminderTwoDays
-                )
-                Divider().padding(.leading, 56)
-                reminderToggle(
-                    title: "W dniu wydarzenia",
-                    subtitle: "O wybranej godzinie, jeśli nie jest za późno",
-                    symbol: "bell.badge",
-                    isOn: $reminderSameDay
-                )
-                Divider().padding(.leading, 56)
-                reminderToggle(
-                    title: "Tylko sprawdziany i kartkówki",
-                    subtitle: "Pomiń zwykłe wydarzenia w planowanych przypomnieniach",
-                    symbol: "graduationcap.fill",
-                    isOn: $reminderAssessmentsOnly
-                )
-            }
-            .padding(.horizontal, 14)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-
-            VStack(spacing: 10) {
-                Picker("Godzina wcześniejszych przypomnień", selection: $reminderAdvanceHour) {
-                    ForEach(15...22, id: \.self) { hour in
-                        Text(String(format: "%02d:00", hour)).tag(hour)
-                    }
-                }
-                Picker("Godzina przypomnienia w dniu wydarzenia", selection: $reminderSameDayHour) {
-                    ForEach(5...10, id: \.self) { hour in
-                        Text(String(format: "%02d:00", hour)).tag(hour)
-                    }
-                }
-            }
-            .pickerStyle(.menu)
-            .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-            Text("Powiadomienia są planowane lokalnie na telefonie. Zmiana ustawień przelicza alerty. iOS może ograniczyć działanie aplikacji w tle, ale wcześniej zaplanowane powiadomienia nie wymagają kolejnej synchronizacji.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .onChange(of: reminderWeekBefore) { _, _ in refreshReminderSchedule() }
-        .onChange(of: reminderTwoDays) { _, _ in refreshReminderSchedule() }
-        .onChange(of: reminderSameDay) { _, _ in refreshReminderSchedule() }
-        .onChange(of: reminderAdvanceHour) { _, _ in refreshReminderSchedule() }
-        .onChange(of: reminderSameDayHour) { _, _ in refreshReminderSchedule() }
-        .onChange(of: reminderAssessmentsOnly) { _, _ in refreshReminderSchedule() }
-    }
-
-    private func reminderToggle(title: String, subtitle: String, symbol: String, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(violet)
-                .frame(width: 34, height: 34)
-                .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(ink)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 4)
-            Toggle(title, isOn: isOn)
-                .labelsHidden()
-                .tint(violet)
-        }
-        .padding(.vertical, 12)
-    }
-
-    private func refreshReminderSchedule() {
-        guard let data = UserDefaults.standard.data(forKey: "recentAgendaEvents"),
-              let events = try? JSONDecoder().decode([AgendaEvent].self, from: data) else { return }
-        Task { await LocalNotificationService.scheduleReminders(for: events) }
-    }
-
-    private func metricPill(value: String, label: String) -> some View {
-        HStack(spacing: 5) {
-            Text(value).font(.caption.weight(.bold))
-            Text(label).font(.caption2).foregroundStyle(.white.opacity(0.78))
-        }
-        .foregroundStyle(.white).padding(.horizontal, 10).padding(.vertical, 8)
-        .background(.white.opacity(0.13), in: Capsule())
-    }
-
-    private var integrationsSection: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            sectionHeading("Połączone usługi", subtitle: "Wszystko zostaje na Twoim iPhonie")
-            VStack(spacing: 0) {
-                librusCard
-                Divider().padding(.leading, 68)
-                appleCalendarCard
-            }
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
-        }
-    }
-
-    private var librusCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                integrationIcon(symbol: "graduationcap.fill", colors: [Color(red: 0.94, green: 0.45, blue: 0.24), Color(red: 0.95, green: 0.64, blue: 0.28)])
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Librus Synergia").font(.subheadline.weight(.bold)).foregroundStyle(ink)
-                    Text(syncManager.isLibrusConnected ? (syncManager.librusDisplayName ?? "Konto połączone") : "Zaloguj się danymi z dziennika")
-                        .font(.caption).foregroundStyle(.secondary)
-                    if syncManager.isLibrusConnected {
-                        Label("Połączono", systemImage: "checkmark.circle.fill").font(.caption2.weight(.semibold)).foregroundStyle(.green)
-                    }
-                }
-                Spacer()
-                if syncManager.isLibrusConnected {
-                    Button { showDisconnectConfirmation = true } label: {
-                        Image(systemName: "ellipsis").font(.headline).foregroundStyle(.secondary)
-                            .frame(width: 32, height: 32)
-                            .background(Color(uiColor: .tertiarySystemGroupedBackground), in: Circle())
-                    }
-                    .buttonStyle(.plain).accessibilityLabel("Opcje konta Librus")
-                }
-            }
-
-            if !syncManager.isLibrusConnected {
-                VStack(spacing: 9) {
-                    TextField("Login do Librus Synergia", text: $login)
-                        .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .keyboardType(.asciiCapable).padding(13)
-                        .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                    SecureField("Hasło do Librus Synergia", text: $password)
-                        .textContentType(.password).padding(13)
-                        .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                    Button {
-                        Task { await syncManager.connectLibrus(login: login, password: password) }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if syncManager.isSyncing { ProgressView().tint(.white) } else { Image(systemName: "lock.open.fill") }
-                            Text(syncManager.isSyncing ? "Łączenie…" : "Połącz z Librusem")
-                        }
-                        .font(.subheadline.weight(.bold)).foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(LinearGradient(colors: [violet, lilac], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(syncManager.isSyncing || login.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
-                    Text("Dane logowania są przechowywane w Keychain na tym urządzeniu.")
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .padding(16)
-    }
-
-    private var appleCalendarCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                integrationIcon(symbol: "calendar", colors: [Color(red: 0.21, green: 0.66, blue: 0.98), Color(red: 0.24, green: 0.46, blue: 0.94)])
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Kalendarz Apple").font(.subheadline.weight(.bold)).foregroundStyle(ink)
-                    Text(syncManager.selectedCalendarIdentifier == nil ? "Wybierz kalendarz do synchronizacji" : (selectedCalendarTitle ?? "Kalendarz docelowy wybrany"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    if syncManager.selectedCalendarIdentifier != nil {
-                        Label("Gotowy do zapisu", systemImage: "checkmark.circle.fill").font(.caption2.weight(.semibold)).foregroundStyle(.green)
-                    }
-                }
-                Spacer()
-            }
-
-            if !syncManager.calendarChoices.isEmpty {
-                Picker("Zapisuj wydarzenia w", selection: Binding(
-                    get: { syncManager.selectedCalendarIdentifier ?? "" },
-                    set: { syncManager.selectCalendar($0) }
-                )) {
-                    ForEach(syncManager.calendarChoices) { calendar in
-                        Text("\(calendar.title) · \(calendar.source)").tag(calendar.id)
-                    }
-                }
-                .font(.subheadline).pickerStyle(.menu).padding(.horizontal, 12).padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            } else {
-                Button { Task { await syncManager.prepareAppleCalendar() } } label: {
-                    Label("Połącz Kalendarz Apple", systemImage: "calendar.badge.plus")
-                        .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(16)
-    }
-
-    private func integrationIcon(symbol: String, colors: [Color]) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 44, height: 44)
-            Image(systemName: symbol).font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
-        }
-    }
-
-    private var syncControl: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            Button { Task { await syncManager.synchronizeNow() } } label: {
-                HStack(spacing: 10) {
-                    if syncManager.isSyncing { ProgressView().tint(.white) }
-                    else { Image(systemName: "arrow.triangle.2.circlepath").font(.headline.weight(.bold)) }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(syncManager.isSyncing ? "Synchronizuję…" : "Synchronizuj teraz").font(.headline.weight(.bold))
-                        Text("Pobierz zmiany i zaktualizuj kalendarz").font(.caption).foregroundStyle(.white.opacity(0.78))
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.right").font(.headline.weight(.semibold))
-                }
-                .foregroundStyle(.white).padding(17)
-                .background(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.23), Color(red: 0.22, green: 0.27, blue: 0.43)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: syncManager.errorMessage == nil ? "info.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(syncManager.errorMessage == nil ? violet : .orange)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(syncManager.status).font(.subheadline.weight(.semibold))
-                    if let message = syncManager.errorMessage {
-                        Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Text(syncManager.lastSync.map { "Ostatnie sprawdzenie: \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Połącz konto i uruchom pierwszą synchronizację.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 3)
-            .padding(.top, 2)
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "rectangle.topthird.inset.filled")
-                    .foregroundStyle(violet)
-                Text(syncManager.widgetDataStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 3)
-        }
-    }
-
-    private var notificationTestControl: some View {
-        Button {
-            Task {
-                let result = await LocalNotificationService.sendTestNotification()
-                notificationTestTitle = result.success ? "Test zaplanowany" : "Powiadomienia wymagają uwagi"
-                notificationTestMessage = result.message
-                showNotificationTestAlert = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "bell.badge.fill")
-                    .font(.headline)
-                    .foregroundStyle(violet)
-                    .frame(width: 42, height: 42)
-                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Testuj powiadomienia")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(ink)
-                    Text("Wyślij testowy alert na tego iPhone’a")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(15)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var filteredUpcomingEvents: [AgendaEvent] {
-        let normalizedQuery = eventSearch.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return syncManager.recentEvents.filter { event in
-            let matchesFilter: Bool
-            switch eventFilter {
-            case "Sprawdziany":
-                matchesFilter = event.isAssessment
-            case "Pozostałe":
-                matchesFilter = !event.isAssessment
-            default:
-                matchesFilter = true
-            }
-            let searchableText = "\(event.title) \(event.notes)"
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
-            return matchesFilter && (normalizedQuery.isEmpty || searchableText.contains(normalizedQuery))
-        }
-    }
-
-    private var upcomingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .lastTextBaseline) {
-                sectionHeading("Inteligentny terminarz", subtitle: "Szukaj i filtruj wydarzenia z Librusa")
-                Spacer()
-                Text("\(filteredUpcomingEvents.count)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(violet)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(violet.opacity(0.1), in: Capsule())
-            }
-
-            HStack(spacing: 9) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Szukaj nazwy, przedmiotu lub notatki", text: $eventSearch)
-                    .font(.subheadline)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                if !eventSearch.isEmpty {
-                    Button {
-                        eventSearch = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            Picker("Filtr wydarzeń", selection: $eventFilter) {
-                Text("Wszystkie").tag("Wszystkie")
-                Text("Sprawdziany").tag("Sprawdziany")
-                Text("Pozostałe").tag("Pozostałe")
-            }
-            .pickerStyle(.segmented)
-
-            if filteredUpcomingEvents.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Image(systemName: syncManager.recentEvents.isEmpty ? "calendar.badge.clock" : "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 27))
-                        .foregroundStyle(violet)
-                    Text(syncManager.recentEvents.isEmpty ? "Na razie pusto" : "Brak pasujących wydarzeń")
-                        .font(.headline)
-                        .foregroundStyle(ink)
-                    Text(syncManager.recentEvents.isEmpty
-                         ? "Po połączeniu Librusa wydarzenia pojawią się tutaj."
-                         : "Zmień filtr albo wyszukiwaną frazę, aby zobaczyć inne pozycje.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(18)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(filteredUpcomingEvents.prefix(30).enumerated()), id: \.element.id) { index, event in
-                        EventRow(event: event, accent: event.isAssessment ? violet : Color.blue)
-                        if index < min(filteredUpcomingEvents.count, 30) - 1 {
-                            Divider().padding(.leading, 68)
-                        }
-                    }
-                }
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            }
-        }
-    }
-
-    private func sectionHeading(_ title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(ink)
-            Text(subtitle).font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    private var widgetRemoteSection: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            sectionHeading("Widżet na ekranie", subtitle: "Połącz widżet bez App Groups")
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Kod konfiguracji")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(ink)
-                if syncManager.widgetShareCode.isEmpty {
-                    Text("Nie udało się utworzyć kodu. Zamknij i uruchom aplikację ponownie.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(syncManager.widgetShareCode)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(ink)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button {
-                        UIPasteboard.general.string = syncManager.widgetShareCode
-                        didCopyWidgetCode = true
-                    } label: {
-                        Label(didCopyWidgetCode ? "Skopiowano kod" : "Kopiuj kod do widżetu",
-                              systemImage: didCopyWidgetCode ? "checkmark.circle.fill" : "doc.on.doc")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(violet.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(violet)
-                    Text("Dodaj lub edytuj widżet LibrusSync na ekranie iPhone’a, otwórz ustawienie „Kod widżetu” i wklej skopiowany kod.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Serwer przechowuje daty i treści nadchodzących wydarzeń oraz skróty kluczy dostępu — nie login ani hasło do Librusa. Nie udostępniaj kodu widżetu.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        }
-    }
-
-    private var backgroundNote: some View {
-        HStack(alignment: .top, spacing: 11) {
-            Image(systemName: "moon.zzz.fill").font(.title3).foregroundStyle(violet).frame(width: 35, height: 35)
-                .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Oszczędza baterię").font(.subheadline.weight(.semibold)).foregroundStyle(ink)
-                Text("Aplikacja nie działa w pętli. iOS wybudza ją w dogodnym momencie, dlatego synchronizacja w tle nie ma stałej godziny.")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(violet.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private var footer: some View {
-        HStack {
-            Spacer()
-            Image(systemName: "lock.shield.fill")
-            Text("Dane logowania są przechowywane lokalnie")
-            Spacer()
-        }
-        .font(.caption2).foregroundStyle(.tertiary).padding(.top, 2)
-    }
-
-    private var displayFirstName: String {
-        let name = syncManager.librusDisplayName ?? "uczniu"
-        return name.split(separator: " ").first.map(String.init) ?? name
-    }
-
-    private var selectedCalendarTitle: String? {
-        syncManager.calendarChoices.first(where: { $0.id == syncManager.selectedCalendarIdentifier })?.title
-    }
-}
-
-private struct EventRow: View {
-    let event: AgendaEvent
-    let accent: Color
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous).fill(accent.opacity(0.1)).frame(width: 43, height: 45)
-                VStack(spacing: 1) {
-                    Text(event.startDate.formatted(.dateTime.day())).font(.system(size: 18, weight: .bold, design: .rounded))
-                    Text(event.startDate.formatted(.dateTime.month(.abbreviated).locale(Locale(identifier: "pl_PL"))).uppercased())
-                        .font(.system(size: 9, weight: .bold))
-                }
-                .foregroundStyle(accent)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(event.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary).lineLimit(3)
-                Text(event.dateLabel).font(.caption).foregroundStyle(.secondary)
-                Label(event.timeLabel, systemImage: event.isAllDay ? "sun.max" : "clock")
-                    .font(.caption2.weight(.medium)).foregroundStyle(accent)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "calendar").font(.caption).foregroundStyle(.tertiary).padding(.top, 3)
-        }
-        .padding(14)
-    }
-}
-
-
-private struct CafeteriaView: View {
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var document: PDFDocument?
-    @State private var currentMenuURL: URL?
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var statusMessage = "Jadłospis sprawdzany automatycznie co 7 dni."
-
-    private let green = Color(red: 0.13, green: 0.48, blue: 0.36)
-    private let mint = Color(red: 0.28, green: 0.69, blue: 0.49)
-
-    private var menuURLForOpening: URL {
-        currentMenuURL ?? CafeteriaMenuService.fallbackPDFURL
-    }
-
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                heroCard
-                statusCard
-
-                if let document {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Label("Jadłospis tygodniowy", systemImage: "doc.text.fill")
-                                .font(.headline)
-                            Spacer()
-                            Text("PDF")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(green)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .background(green.opacity(0.1), in: Capsule())
-                        }
-
-                        HStack(spacing: 8) {
-                            Label("Aktualne menu", systemImage: "checkmark.seal.fill")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(green)
-                            Spacer()
-                            Text("SP1 • BIERUŃ")
-                                .font(.caption2.weight(.bold))
-                                .tracking(0.6)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.bottom, 2)
-
-                        CafeteriaPDFView(document: document)
-                            .frame(height: 560)
-                            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                                    .stroke(green.opacity(0.12), lineWidth: 1)
-                            }
-                            .accessibilityLabel("Aktualny jadłospis stołówki w formacie PDF")
-                    }
-                    .padding(14)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.primary.opacity(0.045), lineWidth: 1)
-                    }
-                } else {
-                    emptyState
-                }
-
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(green)
-                    Text("Jadłospis pochodzi z oficjalnej strony SP1 Bieruń. Aplikacja zachowuje ostatni poprawnie pobrany dokument, aby można go było otworzyć także bez internetu.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 3)
-            }
-            .padding(.horizontal, 17)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
-            .frame(maxWidth: 700)
-            .frame(maxWidth: .infinity)
-        }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-        .task {
-            await loadMenu(forceSourceCheck: false)
-        }
-        .refreshable {
-            await loadMenu(forceSourceCheck: true)
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await loadMenu(forceSourceCheck: false) }
-            }
-        }
-    }
-
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("SP1 BIERUŃ", systemImage: "building.2.fill")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(.white.opacity(0.82))
-                Spacer()
-                Image(systemName: "fork.knife.circle.fill")
-                    .font(.system(size: 34, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.93))
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Co dziś jemy?")
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Menu szkolnej stołówki w jednym miejscu")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-            }
-
-            HStack(spacing: 9) {
-                Button {
-                    Task { await loadMenu(forceSourceCheck: true) }
-                } label: {
-                    HStack(spacing: 7) {
-                        if isLoading {
-                            ProgressView().tint(green)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        Text(isLoading ? "Sprawdzanie…" : "Odśwież jadłospis")
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(green)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .background(.white, in: Capsule())
-                }
-                .disabled(isLoading)
-
-                Link(destination: menuURLForOpening) {
-                    Image(systemName: "arrow.up.right")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 42, height: 42)
-                        .background(.white.opacity(0.17), in: Circle())
-                }
-                .accessibilityLabel("Otwórz oryginalny jadłospis PDF")
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [green, mint],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
-        .overlay(alignment: .topTrailing) {
-            Circle()
-                .fill(.white.opacity(0.08))
-                .frame(width: 150, height: 150)
-                .offset(x: 50, y: -65)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        }
-        .shadow(color: green.opacity(0.17), radius: 16, x: 0, y: 8)
-    }
-
-    private var statusCard: some View {
-        HStack(alignment: .top, spacing: 11) {
-            Image(systemName: CafeteriaMenuService.lastCheckedAt == nil ? "clock.fill" : "checkmark.seal.fill")
-                .font(.title3)
-                .foregroundStyle(green)
-                .frame(width: 39, height: 39)
-                .background(green.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(document == nil ? "Status jadłospisu" : "Jadłospis zapisany")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            if isLoading {
-                ProgressView()
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 13) {
-            Image(systemName: errorMessage == nil ? "fork.knife.circle.fill" : "doc.text.magnifyingglass")
-                .font(.system(size: 43))
-                .foregroundStyle(green.opacity(0.8))
-            Text(errorMessage == nil ? "Pobieramy jadłospis" : "Nie udało się pobrać menu")
-                .font(.headline)
-            Text(errorMessage ?? "Łączę się ze stroną szkoły i szukam aktualnego dokumentu.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button {
-                Task { await loadMenu(forceSourceCheck: true) }
-            } label: {
-                Label("Spróbuj ponownie", systemImage: "arrow.clockwise")
-                    .font(.subheadline.weight(.semibold))
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(green)
-            .disabled(isLoading)
-        }
-        .padding(26)
-        .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    @MainActor
-    private func loadMenu(forceSourceCheck: Bool) async {
-        guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-
-        do {
-            _ = try await CafeteriaMenuService.refreshIfNeeded(force: forceSourceCheck)
-            guard let data = CafeteriaMenuService.cachedPDFData(),
-                  let pdf = PDFDocument(data: data) else {
-                throw CafeteriaLoadError.invalidPDF
-            }
-
-            document = pdf
-            currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
-            if let checkedAt = CafeteriaMenuService.lastCheckedAt {
-                statusMessage = "Oficjalną stronę szkoły sprawdzono: \(checkedAt.formatted(date: .abbreviated, time: .shortened))."
-            } else {
-                statusMessage = "Wyświetlam zapisaną wersję. Aplikacja ponowi próbę znalezienia nowego jadłospisu przy kolejnym otwarciu."
-            }
-        } catch {
-            if let data = CafeteriaMenuService.cachedPDFData(),
-               let pdf = PDFDocument(data: data) {
-                document = pdf
-                currentMenuURL = CafeteriaMenuService.savedPDFURL ?? CafeteriaMenuService.fallbackPDFURL
-                statusMessage = "Nie udało się pobrać nowego menu. Pokazuję ostatnio zapisaną wersję."
-                errorMessage = error.localizedDescription
-            } else {
-                do {
-                    let fallbackData = try await CafeteriaMenuService.downloadFallbackPDF()
-                    guard let pdf = PDFDocument(data: fallbackData) else {
-                        throw CafeteriaLoadError.invalidPDF
-                    }
-                    document = pdf
-                    currentMenuURL = CafeteriaMenuService.fallbackPDFURL
-                    statusMessage = "Pokazuję poprzedni jadłospis. Spróbuj ponownie później."
-                } catch {
-                    errorMessage = error.localizedDescription
-                    statusMessage = "Automatyczne sprawdzanie odbywa się przy otwarciu aplikacji."
-                }
-            }
-        }
-    }
-}
-
-enum CafeteriaMenuService {
-    static let sourcePageURL = URL(string: "https://sp1.bierun.pl/informacje/stolowka")!
-    static let fallbackPDFURL = URL(string: "https://sp1.bierun.pl/pliki/JADLOSPIS-2610-3010,82.pdf?view=1")!
-    static let weeklyInterval: TimeInterval = 7 * 24 * 60 * 60
-
-    private static let lastCheckedKey = "cafeteriaMenu.lastCheckedAt"
-    private static let pdfURLKey = "cafeteriaMenu.pdfURL"
-    private static let cacheFileName = "cafeteria-menu-sp1-bierun.pdf"
-
-    static var lastCheckedAt: Date? {
-        let timestamp = UserDefaults.standard.double(forKey: lastCheckedKey)
-        return timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
-    }
-
-    static var savedPDFURL: URL? {
-        guard let value = UserDefaults.standard.string(forKey: pdfURLKey) else { return nil }
-        return URL(string: value)
-    }
-
-    static func cachedPDFData() -> Data? {
-        guard let url = cacheFileURL else { return nil }
-        return try? Data(contentsOf: url)
-    }
-
-    static func refreshIfNeeded(force: Bool = false) async throws -> Bool {
-        let hasCache = cachedPDFData() != nil
-        let hasURL = savedPDFURL != nil
-        let age = lastCheckedAt.map { Date().timeIntervalSince($0) } ?? .infinity
-        guard force || !hasCache || !hasURL || age >= weeklyInterval else {
-            return false
-        }
-
-        let previousData = cachedPDFData()
-        let latestURL = try await discoverLatestPDFURL()
-        let data = try await downloadPDF(at: latestURL)
-        guard PDFDocument(data: data) != nil else {
-            throw CafeteriaLoadError.invalidPDF
-        }
-
-        guard let destination = cacheFileURL else {
-            throw CafeteriaLoadError.cannotStoreCache
-        }
-        try FileManager.default.createDirectory(
-            at: destination.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try data.write(to: destination, options: .atomic)
-
-        UserDefaults.standard.set(latestURL.absoluteString, forKey: pdfURLKey)
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckedKey)
-
-        // Only alert when a previously cached menu changes; the first download is not a "new menu".
-        if let previousData, previousData != data {
-            await LocalNotificationService.notify(
-                title: "Nowy jadłospis szkolny",
-                body: "Na stronie SP1 Bieruń pojawił się nowy jadłospis. Otwórz LibrusSync → Stołówka.",
-                identifier: "menu-\(latestURL.lastPathComponent)-\(data.count)"
-            )
-        }
-        return true
-    }
-
-    static func downloadFallbackPDF() async throws -> Data {
-        let data = try await downloadPDF(at: fallbackPDFURL)
-        guard PDFDocument(data: data) != nil else {
-            throw CafeteriaLoadError.invalidPDF
-        }
-        if let destination = cacheFileURL {
-            try? FileManager.default.createDirectory(
-                at: destination.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try? data.write(to: destination, options: .atomic)
-        }
-        // Do not update lastCheckedAt: the official school page should be retried
-        // until it can be parsed successfully.
-        UserDefaults.standard.set(fallbackPDFURL.absoluteString, forKey: pdfURLKey)
-        return data
-    }
-
-    private static var cacheFileURL: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent(cacheFileName, isDirectory: false)
-    }
-
-    private static func discoverLatestPDFURL() async throws -> URL {
-        var request = URLRequest(url: sourcePageURL)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.timeoutInterval = 25
-        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode) else {
-            throw CafeteriaLoadError.invalidSourcePage
-        }
-        guard let html = String(data: data, encoding: .utf8)
-                ?? String(data: data, encoding: .isoLatin1) else {
-            throw CafeteriaLoadError.invalidSourcePage
-        }
-
-        let headingPattern = #"(?is)jad[łl]ospis\s*[-–—]\s*aktualny\s*tydzie[ńn]"#
-        guard let headingRegex = try? NSRegularExpression(pattern: headingPattern),
-              let headingMatch = headingRegex.firstMatch(
-                in: html,
-                range: NSRange(html.startIndex..., in: html)
-              ) else {
-            throw CafeteriaLoadError.currentWeekNotFound
-        }
-
-        let sectionStart = headingMatch.range.location + headingMatch.range.length
-        let htmlNSString = html as NSString
-        let remainingRange = NSRange(location: sectionStart, length: htmlNSString.length - sectionStart)
-        let remainingHTML = htmlNSString.substring(with: remainingRange)
-        let nextHeadingPattern = #"(?is)<h[1-6]\b"#
-        let section: String
-        if let nextHeadingRegex = try? NSRegularExpression(pattern: nextHeadingPattern),
-           let nextHeading = nextHeadingRegex.firstMatch(
-             in: remainingHTML,
-             range: NSRange(remainingHTML.startIndex..., in: remainingHTML)
-           ) {
-            section = (remainingHTML as NSString).substring(to: nextHeading.range.location)
-        } else {
-            section = remainingHTML
-        }
-
-        let anchorPattern = #"(?is)<a\b([^>]*)>(.*?)</a>"#
-        guard let anchorRegex = try? NSRegularExpression(pattern: anchorPattern) else {
-            throw CafeteriaLoadError.currentWeekNotFound
-        }
-
-        for match in anchorRegex.matches(in: section, range: NSRange(section.startIndex..., in: section)) {
-            let attributes = (section as NSString).substring(with: match.range(at: 1))
-            let hrefPattern = #"(?is)\bhref\s*=\s*["']([^"']+)["']"#
-            guard let hrefRegex = try? NSRegularExpression(pattern: hrefPattern),
-                  let hrefMatch = hrefRegex.firstMatch(
-                    in: attributes,
-                    range: NSRange(attributes.startIndex..., in: attributes)
-                  ) else { continue }
-
-            var href = (attributes as NSString).substring(with: hrefMatch.range(at: 1))
-            href = href.replacingOccurrences(of: "&amp;", with: "&")
-                .replacingOccurrences(of: "&#038;", with: "&")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let candidate = URL(string: href, relativeTo: sourcePageURL)?.absoluteURL,
-                  candidate.scheme == "https",
-                  candidate.host?.lowercased() == "sp1.bierun.pl",
-                  candidate.pathExtension.lowercased() == "pdf" else { continue }
-            return candidate
-        }
-
-        throw CafeteriaLoadError.currentWeekNotFound
-    }
-
-    private static func downloadPDF(at url: URL) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.timeoutInterval = 30
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode) else {
-            throw CafeteriaLoadError.invalidResponse
-        }
-        guard data.starts(with: Data("%PDF".utf8)) else {
-            throw CafeteriaLoadError.invalidPDF
-        }
-        return data
-    }
-}
-
-private enum CafeteriaLoadError: LocalizedError {
-    case invalidSourcePage
-    case currentWeekNotFound
-    case invalidResponse
-    case invalidPDF
-    case cannotStoreCache
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidSourcePage:
-            return "Nie udało się odczytać strony stołówki. Sprawdź połączenie i spróbuj ponownie."
-        case .currentWeekNotFound:
-            return "Nie znaleziono linku do aktualnego jadłospisu na stronie szkoły."
-        case .invalidResponse:
-            return "Strona szkoły nie zwróciła poprawnej odpowiedzi. Spróbuj ponownie."
-        case .invalidPDF:
-            return "Pobrany plik nie jest poprawnym dokumentem PDF."
-        case .cannotStoreCache:
-            return "Nie udało się zapisać jadłospisu na telefonie."
-        }
-    }
-}
-
-private struct CafeteriaPDFView: UIViewRepresentable {
-    let document: PDFDocument
-
-    func makeUIView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.displayMode = .singlePageContinuous
-        view.displayDirection = .vertical
-        view.displaysPageBreaks = true
-        view.backgroundColor = UIColor.systemGroupedBackground
-        view.document = document
-        return view
-    }
-
-    func updateUIView(_ uiView: PDFView, context: Context) {
-        if uiView.document !== document {
-            uiView.document = document
-        }
-    }
-}
-
-
-// MARK: - App updates (GitHub Releases)
-
-private struct GitHubAppRelease: Decodable {
-    struct Asset: Decodable {
-        let name: String
-    }
-
-    let tagName: String
-    let htmlURL: URL
-    let body: String?
-    let assets: [Asset]
-
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
-        case htmlURL = "html_url"
-        case body
-        case assets
-    }
-}
-
-@MainActor
-final class AppUpdateChecker: ObservableObject {
-    @Published private(set) var latestVersion: String?
-    @Published private(set) var releasePageURL: URL?
-    @Published private(set) var releaseNotes: String?
-    @Published private(set) var isChecking = false
-    @Published private(set) var statusMessage = "Aktualizacje sprawdzane są automatycznie."
-    @Published private(set) var lastCheckedAt: Date?
-    @Published private(set) var shouldNotifyForRelease = false
-
-    private let checkInterval: TimeInterval = 24 * 60 * 60
-    private let lastCheckKey = "appUpdate.lastCheck"
-    private let lastNotifiedKey = "appUpdate.lastNotifiedVersion"
-    private let defaults = UserDefaults.standard
-
-    var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
-
-    var isUpdateAvailable: Bool {
-        guard let latestVersion else { return false }
-        return Self.compareVersions(latestVersion, currentVersion) > 0
-    }
-
-    init() {
-        latestVersion = defaults.string(forKey: "appUpdate.latestVersion")
-        releasePageURL = defaults.string(forKey: "appUpdate.releaseURL").flatMap(URL.init(string:))
-        releaseNotes = defaults.string(forKey: "appUpdate.releaseNotes")
-        lastCheckedAt = defaults.object(forKey: lastCheckKey) as? Date
-        if let lastCheckedAt {
-            statusMessage = "Ostatnie sprawdzenie: \(lastCheckedAt.formatted(date: .abbreviated, time: .shortened))"
-        }
-    }
-
-    func checkIfNeeded() async {
-        if let lastCheckedAt, Date().timeIntervalSince(lastCheckedAt) < checkInterval {
-            // Use cached release details until the daily refresh interval expires.
-            shouldNotifyForRelease = false
-            return
-        }
-        await checkNow()
-    }
-
-    func checkNow() async {
-        guard !isChecking else { return }
-        isChecking = true
-        shouldNotifyForRelease = false
-        defer { isChecking = false }
-
-        do {
-            let endpoint = URL(string: "https://api.github.com/repos/janczesko12/LibrusSync/releases/latest")!
-            var request = URLRequest(url: endpoint)
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            request.timeoutInterval = 15
-            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            request.setValue("LibrusSync-iOS", forHTTPHeaderField: "User-Agent")
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw UpdateCheckError.releaseUnavailable
-            }
-            let release = try JSONDecoder().decode(GitHubAppRelease.self, from: data)
-            guard release.assets.contains(where: { $0.name.lowercased().hasSuffix(".ipa") }) else {
-                throw UpdateCheckError.ipaMissing
-            }
-            guard Self.versionParts(release.tagName) != nil else {
-                throw UpdateCheckError.invalidVersion
-            }
-
-            let version = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-            latestVersion = version
-            releasePageURL = release.htmlURL
-            releaseNotes = release.body
-            lastCheckedAt = Date()
-            statusMessage = isUpdateAvailable
-                ? "Dostępna nowa wersja: \(version)"
-                : "Masz aktualną wersję."
-            defaults.set(version, forKey: "appUpdate.latestVersion")
-            defaults.set(release.htmlURL.absoluteString, forKey: "appUpdate.releaseURL")
-            defaults.set(release.body, forKey: "appUpdate.releaseNotes")
-            defaults.set(lastCheckedAt, forKey: lastCheckKey)
-
-            if isUpdateAvailable, defaults.string(forKey: lastNotifiedKey) != version {
-                defaults.set(version, forKey: lastNotifiedKey)
-                shouldNotifyForRelease = true
-            }
-        } catch {
-            statusMessage = error.localizedDescription
-        }
-    }
-
-    private static func versionParts(_ value: String) -> [Int]? {
-        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: #"^[vV]"#, with: "", options: .regularExpression)
-        let pieces = clean.split(separator: ".", omittingEmptySubsequences: false)
-        guard !pieces.isEmpty, pieces.count <= 3 else { return nil }
-        let result = pieces.compactMap { Int($0) }
-        return result.count == pieces.count ? result : nil
-    }
-
-    private static func compareVersions(_ lhs: String, _ rhs: String) -> Int {
-        guard let left = versionParts(lhs), let right = versionParts(rhs) else { return 0 }
-        for index in 0..<max(left.count, right.count) {
-            let a = index < left.count ? left[index] : 0
-            let b = index < right.count ? right[index] : 0
-            if a != b { return a < b ? -1 : 1 }
-        }
-        return 0
-    }
-}
-
-private enum UpdateCheckError: LocalizedError {
-    case releaseUnavailable
-    case ipaMissing
-    case invalidVersion
-
-    var errorDescription: String? {
-        switch self {
-        case .releaseUnavailable:
-            return "Nie udało się odczytać najnowszego wydania. Sprawdź połączenie lub spróbuj później."
-        case .ipaMissing:
-            return "Najnowsze wydanie nie zawiera pliku IPA do pobrania."
-        case .invalidVersion:
-            return "Wydanie ma nieprawidłowy numer wersji."
-        }
-    }
-}
-
-private struct AppUpdateCard: View {
-    @ObservedObject var checker: AppUpdateChecker
-    @Environment(\.openURL) private var openURL
-
-    private var ink: Color { Color(uiColor: .label) }
-    private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(violet)
-                    .frame(width: 42, height: 42)
-                    .background(violet.opacity(0.1), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Aktualizacje aplikacji")
-                        .font(.headline)
-                        .foregroundStyle(ink)
-                    Text("Zainstalowana wersja: \(checker.currentVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if checker.isChecking {
-                    ProgressView()
-                }
-            }
-
-            if checker.isUpdateAvailable, let latest = checker.latestVersion {
-                Label("Dostępna wersja \(latest)", systemImage: "arrow.down.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.green)
-                Button {
-                    if let url = checker.releasePageURL { openURL(url) }
-                } label: {
-                    Label("Pobierz aktualizację", systemImage: "arrow.down.to.line")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(violet)
-            } else if let latest = checker.latestVersion {
-                Label("Masz aktualną wersję (\(latest))", systemImage: "checkmark.circle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.green)
-            } else {
-                Text(checker.statusMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button {
-                Task { await checker.checkNow() }
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.clockwise")
-                    Text(checker.isChecking ? "Sprawdzanie…" : "Sprawdź teraz")
-                }
-                .font(.subheadline.weight(.medium))
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(checker.isChecking)
-
-            if let checked = checker.lastCheckedAt {
-                Text("Ostatnie sprawdzenie: \(checked.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            Text("iOS nie instaluje IPA automatycznie. Po pobraniu otwórz plik w AltStore PAL lub swoim instalatorze, aby potwierdzić aktualizację.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-}
-
-
-// MARK: - Weekly timetable
-
-private struct TimetableView: View {
-    @ObservedObject private var syncManager = SyncManager.shared
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var weekStart: Date
-    @State private var selectedDate: Date
-    @State private var days: [TimetableDay] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var didLoad = false
-
-    private let violet = Color(red: 0.38, green: 0.30, blue: 0.93)
-    private let lilac = Color(red: 0.63, green: 0.48, blue: 0.98)
-
-    init() {
-        let today = Calendar.current.startOfDay(for: Date())
-        let monday = Self.monday(for: today)
-        let weekday = Calendar.current.component(.weekday, from: today)
-        _weekStart = State(initialValue: monday)
-        _selectedDate = State(initialValue: weekday == 1 || weekday == 7 ? monday : today)
-    }
-
-    private static func monday(for date: Date) -> Date {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: date)
-        let offset = (weekday + 5) % 7
-        return calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: date)) ?? date
-    }
-
-    private var weekDates: [Date] {
-        (0..<5).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: weekStart) }
-    }
-
-    private var selectedLessons: [LessonPeriod] {
-        days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) })?.lessons ?? []
-    }
-
-    private var cacheKey: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyyMMdd"
-        return "librusSync.timetable.\(formatter.string(from: weekStart))"
-    }
-
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                heroCard
-                weekPicker
-                dayPicker
-                selectedDayHeader
-                lessonContent
-                footerNote
-            }
-            .padding(.horizontal, 17)
-            .padding(.top, 16)
-            .padding(.bottom, 30)
-            .frame(maxWidth: 700)
-            .frame(maxWidth: .infinity)
-        }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-        .task {
-            await loadTimetable(force: false)
-        }
-        .refreshable {
-            await loadTimetable(force: true)
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await loadTimetable(force: false) }
-            }
-        }
-    }
-
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Label("TWÓJ SZKOLNY TYDZIEŃ", systemImage: "calendar")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.15)
-                    .foregroundStyle(.white.opacity(0.78))
-                Spacer()
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 29, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.88))
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Plan lekcji")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Wszystkie zajęcia, godziny i sale w jednym miejscu.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.82))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: 8) {
-                Label("\(selectedLessons.count) lekcji", systemImage: "list.number")
-                Text("•")
-                Label("\(selectedLessons.filter { $0.isSubstitution }.count) zastępstw", systemImage: "arrow.triangle.2.circlepath")
-                Text("•")
-                Text(selectedDate.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "pl_PL"))))
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 8)
-            .background(.white.opacity(0.16), in: Capsule())
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Color(red: 0.28, green: 0.24, blue: 0.77), violet, lilac],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
-        .overlay(alignment: .topTrailing) {
-            Circle()
-                .stroke(.white.opacity(0.13), lineWidth: 1)
-                .frame(width: 112, height: 112)
-                .offset(x: 23, y: -38)
-        }
-        .shadow(color: violet.opacity(0.17), radius: 16, x: 0, y: 8)
+        .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(.white.opacity(0.09), lineWidth: 1))
     }
 
     private var weekPicker: some View {
@@ -1804,8 +372,7 @@ private struct TimetableView: View {
             .accessibilityLabel("Odśwież plan lekcji")
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .lsSurface(21)
     }
 
     private var dayPicker: some View {
@@ -1858,26 +425,35 @@ private struct TimetableView: View {
     }
 
     private var selectedDayHeader: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(fullDate(selectedDate))
-                    .font(.title3.weight(.bold))
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(.primary)
                 Text(Calendar.current.isDateInToday(selectedDate) ? "Twój plan na dzisiaj" : "Plan na wybrany dzień")
-                    .font(.caption)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if Calendar.current.isDateInToday(selectedDate) {
+            if selectedLessons.contains(where: { $0.isSubstitution }) {
+                Label("ZASTĘPSTWA", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.35)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 7)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+            } else if Calendar.current.isDateInToday(selectedDate) {
                 Text("DZISIAJ")
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.6)
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.7)
                     .foregroundStyle(violet)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 7)
                     .background(violet.opacity(0.1), in: Capsule())
             }
         }
+        .padding(.horizontal, 2)
     }
 
     @ViewBuilder
@@ -1946,83 +522,99 @@ private struct TimetableView: View {
     private func lessonCard(_ lesson: LessonPeriod) -> some View {
         let substitution = lesson.isSubstitution
         let current = isCurrentLesson(lesson)
-        let accent = substitution ? Color.orange : violet
-        return HStack(spacing: 13) {
+        let accent = substitution ? Color.orange : (current ? Color.green : violet)
+
+        return HStack(spacing: 14) {
             VStack(spacing: 4) {
-                Text("\(lesson.number)")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text(String(format: "%02d", lesson.number))
+                    .font(.system(size: 21, weight: .heavy, design: .rounded))
                     .foregroundStyle(accent)
                 Text("LEKCJA")
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(0.5)
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .tracking(0.65)
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 48, height: 54)
-            .background(violet.opacity(0.09), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(width: 55, height: 66)
+            .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(accent.opacity(0.13), lineWidth: 1))
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text(lesson.subject)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+
                 HStack(spacing: 6) {
                     if substitution {
                         Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 9, weight: .bold))
-                        .tracking(0.35)
-                        .foregroundStyle(Color.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.12), in: Capsule())
-                        .accessibilityLabel("Lekcja odbywa się w ramach zastępstwa")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.35)
+                            .foregroundStyle(Color.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.orange.opacity(0.13), in: Capsule())
                     }
                     if current {
-                        Text("TERAZ")
-                            .font(.system(size: 9, weight: .heavy))
-                            .tracking(0.4)
+                        Label("TERAZ", systemImage: "dot.radiowaves.left.and.right")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.35)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background(Color.green, in: Capsule())
                     }
                 }
+
                 if !lesson.teacherAndRoom.isEmpty {
-                    Text(lesson.teacherAndRoom)
-                        .font(.caption)
+                    Label(lesson.teacherAndRoom, systemImage: "person.fill")
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
 
-            Spacer(minLength: 3)
+            Spacer(minLength: 2)
 
             VStack(alignment: .trailing, spacing: 4) {
                 Text(lesson.startTime.isEmpty ? "—" : lesson.startTime)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.primary)
                     .monospacedDigit()
                 Text(lesson.endTime.isEmpty ? "" : lesson.endTime)
-                    .font(.caption.weight(.medium))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                Capsule()
+                    .fill(accent.opacity(0.6))
+                    .frame(width: 27, height: 3)
+                    .padding(.top, 3)
             }
         }
-        .padding(13)
+        .padding(14)
         .background(
-            current ? Color.green.opacity(0.075) :
-                (substitution ? Color.orange.opacity(0.075) : Color(uiColor: .secondarySystemGroupedBackground)),
-            in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(uiColor: .secondarySystemGroupedBackground),
+                            accent.opacity(substitution || current ? 0.10 : 0.025)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(accent)
-                .frame(width: substitution ? 5 : 4)
-                .padding(.vertical, 11)
+                .frame(width: 5)
+                .padding(.vertical, 13)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(substitution ? Color.orange.opacity(0.35) : (current ? Color.green.opacity(0.3) : Color.primary.opacity(0.045)), lineWidth: substitution || current ? 1.2 : 1)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(substitution || current ? 0.27 : 0.07), lineWidth: substitution || current ? 1.3 : 1)
         }
+        .shadow(color: accent.opacity(substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
         .animation(.snappy(duration: 0.22), value: current)
         .animation(.snappy(duration: 0.22), value: substitution)
     }
@@ -2148,5 +740,56 @@ private struct TimetableView: View {
                 errorMessage = "Nie udało się odświeżyć danych. Wyświetlam ostatnio zapisany plan."
             }
         }
+    }
+}
+
+
+// MARK: - LibrusSync visual system
+
+private struct LibrusScreenBackground: View {
+    let tint: Color
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color(uiColor: .systemGroupedBackground)
+            LinearGradient(
+                colors: [tint.opacity(0.075), .clear, Color.blue.opacity(0.025)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Circle()
+                .fill(tint.opacity(0.075))
+                .frame(width: 250, height: 250)
+                .blur(radius: 58)
+                .offset(x: 112, y: -125)
+            Circle()
+                .fill(Color.blue.opacity(0.035))
+                .frame(width: 220, height: 220)
+                .blur(radius: 64)
+                .offset(x: -180, y: 430)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}
+
+private extension View {
+    func lsSurface(_ radius: CGFloat = 23) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.62), Color.primary.opacity(0.045)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .shadow(color: Color.black.opacity(0.045), radius: 15, x: 0, y: 7)
     }
 }
