@@ -178,6 +178,26 @@ enum LocalNotificationService {
         }
     }
 
+    /// Sends a one-off informational alert for changes outside the homework calendar.
+    static func notify(title: String, body: String, identifier: String) async {
+        guard await requestAuthorization() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.threadIdentifier = "librussync-updates"
+        let request = UNNotificationRequest(
+            identifier: "librussync-update-\\(identifier)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        )
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("LibrusSync: nie udało się wysłać alertu: \\(error.localizedDescription)")
+        }
+    }
+
     /// Refreshes local reminders according to the user's preferences.
     /// iOS limits pending local notifications, so only the 60 soonest alerts are kept.
     static func scheduleReminders(for events: [AgendaEvent]) async {
