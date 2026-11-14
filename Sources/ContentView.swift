@@ -2189,7 +2189,7 @@ private struct TimetableView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(accent.opacity(cancelled || substitution || current ? 0.27 : 0.07), lineWidth: cancelled || substitution || current ? 1.3 : 1)
         }
-        .shadow(color: accent.opacity(substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
+        .shadow(color: accent.opacity(cancelled || substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
         .animation(.snappy(duration: 0.22), value: current)
         .animation(.snappy(duration: 0.22), value: substitution)
         .animation(.snappy(duration: 0.22), value: cancelled)
