@@ -337,20 +337,29 @@ final class LibrusClient {
                     if !details.isEmpty { teacherAndRoom.append(details) }
                 }
 
+                // Status indicators may be rendered as visible text, CSS classes,
+                // data attributes, title/alt values or icons. Decode the full cell
+                // before looking for them so lessons with an empty subject can still
+                // be represented when Librus marks them as cancelled.
+                let statusSource = "\(cellTag) \(cellHTML) \(plainText(cellHTML))"
+                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+                    .lowercased()
+                let isCancelled = statusSource.range(
+                    of: #"(?:odwol\w*|anul\w*|cancelled|canceled|lesson[_ -]?cancel)"#,
+                    options: .regularExpression
+                ) != nil
                 let subject = subjects.joined(separator: " / ").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !subject.isEmpty else { continue }
+                guard !subject.isEmpty || isCancelled else { continue }
+                let displaySubject = subject.isEmpty ? "Lekcja odwołana" : subject
                 let detail = teacherAndRoom.joined(separator: " / ")
 
                 // Librus can mark substitutions in visible text, title/alt attributes
                 // or CSS classes. Normalize Polish diacritics before checking the marker.
-                let substitutionSource = "\(cellTag) \(cellHTML)"
-                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
-                    .lowercased()
                 let isSubstitution =
-                    substitutionSource.contains("zastepstwo") ||
-                    substitutionSource.contains("zastepca") ||
-                    substitutionSource.contains("substitution") ||
-                    substitutionSource.range(of: #"\bzast\.?\b"#, options: .regularExpression) != nil
+                    statusSource.contains("zastepstwo") ||
+                    statusSource.contains("zastepca") ||
+                    statusSource.contains("substitution") ||
+                    statusSource.range(of: #"\bzast\.?\b"#, options: .regularExpression) != nil
 
                 let dateKey = Int(lessonDate.timeIntervalSince1970)
                 let lessonID = "\(dateKey)-\(periodNumber)-\(startTime)"
@@ -358,11 +367,12 @@ final class LibrusClient {
                     LessonPeriod(
                         id: lessonID,
                         number: periodNumber,
-                        subject: subject,
+                        subject: displaySubject,
                         teacherAndRoom: detail,
                         startTime: startTime,
                         endTime: endTime,
-                        isSubstitution: isSubstitution
+                        isSubstitution: isSubstitution,
+                        isCancelled: isCancelled
                     )
                 )
             }
