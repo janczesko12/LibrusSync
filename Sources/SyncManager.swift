@@ -205,12 +205,10 @@ final class SyncManager: ObservableObject {
                 return
             }
 
+            // Complete the background task as soon as the essential Librus
+            // synchronization finishes. Optional services must not consume the
+            // short execution window reserved for BGAppRefreshTask.
             let syncSucceeded = await self.synchronizeNow()
-            if !Task.isCancelled && syncSucceeded {
-                // Keep the optional cafeteria refresh after the essential Librus sync
-                // so a slow menu endpoint cannot prevent the timetable from updating.
-                _ = try? await CafeteriaMenuService.refreshIfNeeded()
-            }
             task.setTaskCompleted(success: syncSucceeded && !Task.isCancelled)
         }
         task.expirationHandler = { operation.cancel() }
