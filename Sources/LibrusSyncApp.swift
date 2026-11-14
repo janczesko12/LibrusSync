@@ -24,7 +24,9 @@ final class BackgroundRefreshScheduler {
                 task.setTaskCompleted(success: false)
                 return
             }
-            SyncManager.shared.handleBackgroundTask(refreshTask)
+            Task { @MainActor in
+                SyncManager.shared.handleBackgroundTask(refreshTask)
+            }
         }
     }
 
@@ -38,7 +40,6 @@ final class BackgroundRefreshScheduler {
 
         let request = BGAppRefreshTaskRequest(identifier: Self.identifier)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
-        request.requiresNetworkConnectivity = true
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
