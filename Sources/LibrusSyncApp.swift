@@ -24,15 +24,30 @@ final class BackgroundRefreshScheduler {
                 task.setTaskCompleted(success: false)
                 return
             }
-            SyncManager.shared.handleBackgroundTask(refreshTask)
+            Task { @MainActor in
+                SyncManager.shared.handleBackgroundTask(refreshTask)
+            }
         }
     }
 
     func scheduleNext() {
+        // Keep a single pending request. Repeated foreground/background transitions
+        // must not leave stale requests that can block later scheduling.
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.identifier)
+
         guard let login = KeychainStore.read(key: "librusLogin"), !login.isEmpty,
               let password = KeychainStore.read(key: "librusPassword"), !password.isEmpty else { return }
+
         let request = BGAppRefreshTaskRequest(identifier: Self.identifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 45 * 60)
-        do { try BGTaskScheduler.shared.submit(request) } catch { }
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            print("LibrusSync: nie udało się zaplanować odświeżania w tle: \(error.localizedDescription)")
+        }
+    }
+
+    func cancelPending() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.identifier)
     }
 }

@@ -29,6 +29,10 @@
 
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>LibrusSync dodaje i aktualizuje wydarzenia w osobnym kalendarzu LibrusSync.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+    </array>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
         <string>pl.novydev.librussync.refresh</string>

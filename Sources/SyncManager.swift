@@ -9,6 +9,8 @@ final class SyncManager: ObservableObject {
     @Published private(set) var status = "Połącz swoje konto Librus"
     @Published private(set) var lastSync: Date?
     @Published private(set) var isSyncing = false
+    @Published private(set) var syncProgress = 0.0
+    @Published private(set) var syncProgressMessage = ""
     @Published private(set) var errorMessage: String?
     @Published private(set) var recentEvents: [AgendaEvent] = []
     @Published private(set) var isLibrusConnected = false
@@ -44,12 +46,22 @@ final class SyncManager: ObservableObject {
     func connectLibrus(login: String, password: String) async {
         guard !isSyncing else { return }
         isSyncing = true
+        syncProgress = 0.04
+        syncProgressMessage = "Loguję się do Librusa…"
         errorMessage = nil
         status = "Łączenie z Librus Synergia…"
-        defer { isSyncing = false }
+        defer {
+            isSyncing = false
+            if errorMessage != nil {
+                syncProgress = 0
+                syncProgressMessage = "Nie udało się zakończyć synchronizacji"
+            }
+        }
         do {
             let cleanedLogin = login.trimmingCharacters(in: .whitespacesAndNewlines)
             let snapshot = try await client.connect(login: cleanedLogin, password: password)
+            syncProgress = 0.28
+            syncProgressMessage = "Konto połączone • przygotowuję kalendarz…"
             guard KeychainStore.save(cleanedLogin, key: "librusLogin"),
                   KeychainStore.save(password, key: "librusPassword") else {
                 errorMessage = "Nie udało się bezpiecznie zapisać danych w pęku kluczy iOS."
@@ -59,6 +71,8 @@ final class SyncManager: ObservableObject {
             isLibrusConnected = true
             librusDisplayName = snapshot.displayName
             defaults.set(snapshot.displayName, forKey: "librusDisplayName")
+            syncProgress = 0.32
+            syncProgressMessage = "Pobrano dane • zapisuję zmiany…"
             _ = await LocalNotificationService.requestAuthorization()
             await apply(snapshot)
         } catch {
@@ -67,28 +81,43 @@ final class SyncManager: ObservableObject {
         }
     }
 
-    func synchronizeNow() async {
-        guard !isSyncing else { return }
+    @discardableResult
+    func synchronizeNow() async -> Bool {
+        guard !isSyncing else { return false }
         guard let login = KeychainStore.read(key: "librusLogin"),
               let password = KeychainStore.read(key: "librusPassword") else {
             errorMessage = "Najpierw połącz konto Librus Synergia."
             status = "Konto niepołączone"
             isLibrusConnected = false
-            return
+            return false
         }
         isSyncing = true
+        syncProgress = 0.05
+        syncProgressMessage = "Sprawdzam sesję Librusa…"
         errorMessage = nil
         status = "Pobieram aktualny terminarz…"
         BackgroundRefreshScheduler.shared.scheduleNext()
-        defer { isSyncing = false }
+        defer {
+            isSyncing = false
+            if errorMessage != nil {
+                syncProgress = 0
+                syncProgressMessage = "Synchronizacja nieudana"
+            }
+        }
         do {
             let snapshot = try await client.synchronize(login: login, password: password)
+            syncProgress = 0.28
+            syncProgressMessage = "Pobrano dane • aktualizuję kalendarz…"
             librusDisplayName = snapshot.displayName
             defaults.set(snapshot.displayName, forKey: "librusDisplayName")
             await apply(snapshot)
+            return errorMessage == nil
         } catch {
             errorMessage = error.localizedDescription
             status = "Synchronizacja nieudana"
+            syncProgress = 0
+            syncProgressMessage = "Synchronizacja nieudana"
+            return false
         }
     }
 
@@ -120,6 +149,7 @@ final class SyncManager: ObservableObject {
     }
 
     func disconnectLibrus() {
+        BackgroundRefreshScheduler.shared.cancelPending()
         KeychainStore.delete(key: "librusLogin")
         KeychainStore.delete(key: "librusPassword")
         client.clearSession()
@@ -165,20 +195,35 @@ final class SyncManager: ObservableObject {
 
     func handleBackgroundTask(_ task: BGAppRefreshTask) {
         BackgroundRefreshScheduler.shared.scheduleNext()
-        let operation = Task { @MainActor in
-            // iOS chooses when this task runs; if it wakes the app, also check the
-            // school's menu page when the seven-day refresh interval has elapsed.
-            _ = try? await CafeteriaMenuService.refreshIfNeeded()
-            await self.synchronizeNow()
-            task.setTaskCompleted(success: self.errorMessage == nil)
+        let operation = Task { @MainActor [weak self] in
+            guard let self else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            guard !self.isSyncing else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+
+            let syncSucceeded = await self.synchronizeNow()
+            if !Task.isCancelled && syncSucceeded {
+                // Keep the optional cafeteria refresh after the essential Librus sync
+                // so a slow menu endpoint cannot prevent the timetable from updating.
+                _ = try? await CafeteriaMenuService.refreshIfNeeded()
+            }
+            task.setTaskCompleted(success: syncSucceeded && !Task.isCancelled)
         }
         task.expirationHandler = { operation.cancel() }
     }
 
     private func apply(_ snapshot: LibrusSnapshot) async {
         do {
+            syncProgress = max(syncProgress, 0.34)
+            syncProgressMessage = "Przygotowuję Kalendarz Apple…"
             try await writer.prepareAccessAndLoadCalendars()
             refreshCalendarState()
+            syncProgress = max(syncProgress, 0.40)
+            syncProgressMessage = "Aktualizuję wydarzenia…"
 
             let prior = defaults.dictionary(forKey: "knownEventFingerprints") as? [String: String] ?? [:]
             let isFirstSync = !defaults.bool(forKey: "hasCompletedInitialImport")
@@ -188,9 +233,14 @@ final class SyncManager: ObservableObject {
 
             // Write every changed/new event first. Only persist fingerprints after the
             // complete pass succeeds, so a calendar error can be retried next time.
-            for item in snapshot.events {
+            let totalItems = max(snapshot.events.count, 1)
+            for (index, item) in snapshot.events.enumerated() {
                 if let old = prior[item.uid] {
-                    guard old != item.fingerprint else { continue }
+                    if old == item.fingerprint {
+                        syncProgress = 0.42 + 0.36 * Double(index + 1) / Double(totalItems)
+                        syncProgressMessage = "Sprawdzam wydarzenia • \(index + 1)/\(snapshot.events.count)"
+                        continue
+                    }
                     try writer.upsert(item)
                     next[item.uid] = item.fingerprint
                     changedItems.append(item)
@@ -199,6 +249,12 @@ final class SyncManager: ObservableObject {
                     next[item.uid] = item.fingerprint
                     addedItems.append(item)
                 }
+                syncProgress = 0.42 + 0.36 * Double(index + 1) / Double(totalItems)
+                syncProgressMessage = "Zapisuję wydarzenia • \(index + 1)/\(snapshot.events.count)"
+            }
+            if snapshot.events.isEmpty {
+                syncProgress = 0.78
+                syncProgressMessage = "Brak wydarzeń do zapisania…"
             }
 
             // Reconcile deletes only when the API returned a non-empty valid snapshot.
@@ -211,6 +267,8 @@ final class SyncManager: ObservableObject {
                 next = next.filter { liveUIDs.contains($0.key) }
             }
 
+            syncProgress = 0.81
+            syncProgressMessage = "Porządkuję usunięte wpisy…"
             defaults.set(next, forKey: "knownEventFingerprints")
             defaults.set(true, forKey: "hasCompletedInitialImport")
             defaults.set(Date(), forKey: "lastSuccessfulSync")
@@ -225,6 +283,8 @@ final class SyncManager: ObservableObject {
             recentEvents = visibleEvents
 
             // Upload only upcoming event details to the private remote widget feed.
+            syncProgress = 0.86
+            syncProgressMessage = "Aktualizuję widżet…"
             if let id = KeychainStore.read(key: "widgetRemoteID"),
                let readToken = KeychainStore.read(key: "widgetRemoteReadToken"),
                let writeToken = KeychainStore.read(key: "widgetRemoteWriteToken") {
@@ -239,6 +299,8 @@ final class SyncManager: ObservableObject {
             }
 
             // Rebuild reminders so changed dates and deleted events cannot keep stale alerts.
+            syncProgress = 0.92
+            syncProgressMessage = "Odświeżam przypomnienia…"
             await LocalNotificationService.scheduleReminders(for: upcomingEvents)
 
             // Avoid a notification storm when importing an existing account for the first time.
@@ -270,10 +332,16 @@ final class SyncManager: ObservableObject {
             }
             errorMessage = nil
             BackgroundRefreshScheduler.shared.scheduleNext()
+            syncProgress = 0.96
+            syncProgressMessage = "Sprawdzam aktualizacje planu lekcji…"
             await checkTimetableUpdates()
+            syncProgress = 1
+            syncProgressMessage = "Synchronizacja zakończona"
         } catch {
             errorMessage = error.localizedDescription
             status = "Połączono, ale synchronizacja kalendarza nie powiodła się"
+            syncProgress = 0
+            syncProgressMessage = "Błąd podczas zapisywania danych"
         }
     }
 

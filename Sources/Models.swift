@@ -120,9 +120,10 @@ struct LessonPeriod: Codable, Identifiable, Equatable {
     let startTime: String
     let endTime: String
     var isSubstitution: Bool
+    var isCancelled: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case id, number, subject, teacherAndRoom, startTime, endTime, isSubstitution
+        case id, number, subject, teacherAndRoom, startTime, endTime, isSubstitution, isCancelled
     }
 
     init(
@@ -132,7 +133,8 @@ struct LessonPeriod: Codable, Identifiable, Equatable {
         teacherAndRoom: String,
         startTime: String,
         endTime: String,
-        isSubstitution: Bool = false
+        isSubstitution: Bool = false,
+        isCancelled: Bool = false
     ) {
         self.id = id
         self.number = number
@@ -141,6 +143,7 @@ struct LessonPeriod: Codable, Identifiable, Equatable {
         self.startTime = startTime
         self.endTime = endTime
         self.isSubstitution = isSubstitution
+        self.isCancelled = isCancelled
     }
 
     init(from decoder: Decoder) throws {
@@ -152,6 +155,7 @@ struct LessonPeriod: Codable, Identifiable, Equatable {
         startTime = try values.decode(String.self, forKey: .startTime)
         endTime = try values.decode(String.self, forKey: .endTime)
         isSubstitution = try values.decodeIfPresent(Bool.self, forKey: .isSubstitution) ?? false
+        isCancelled = try values.decodeIfPresent(Bool.self, forKey: .isCancelled) ?? false
     }
 }
 

@@ -700,6 +700,27 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .disabled(syncManager.isSyncing || !syncManager.isLibrusConnected)
 
+            if syncManager.isSyncing {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text(syncManager.syncProgressMessage.isEmpty ? "Synchronizuję dane…" : syncManager.syncProgressMessage)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text("\(Int((syncManager.syncProgress * 100).rounded()))%")
+                            .font(.caption.monospacedDigit().weight(.bold))
+                            .foregroundStyle(violet)
+                    }
+                    ProgressView(value: syncManager.syncProgress)
+                        .tint(violet)
+                        .animation(.easeInOut(duration: 0.2), value: syncManager.syncProgress)
+                }
+                .padding(13)
+                .background(violet.opacity(0.075), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .accessibilityElement(children: .combine)
+            }
+
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: syncManager.errorMessage == nil ? "info.circle.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(syncManager.errorMessage == nil ? violet : .orange)
@@ -2063,9 +2084,10 @@ private struct TimetableView: View {
     }
 
     private func lessonCard(_ lesson: LessonPeriod) -> some View {
-        let substitution = lesson.isSubstitution
-        let current = isCurrentLesson(lesson)
-        let accent = substitution ? Color.orange : (current ? Color.green : violet)
+        let substitution = lesson.isSubstitution && !lesson.isCancelled
+        let cancelled = lesson.isCancelled
+        let current = !cancelled && isCurrentLesson(lesson)
+        let accent = cancelled ? Color.red : (substitution ? Color.orange : (current ? Color.green : violet))
 
         return HStack(spacing: 14) {
             VStack(spacing: 4) {
@@ -2084,10 +2106,20 @@ private struct TimetableView: View {
             VStack(alignment: .leading, spacing: 7) {
                 Text(lesson.subject)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(cancelled ? .secondary : .primary)
+                    .strikethrough(cancelled, color: .red)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 6) {
+                    if cancelled {
+                        Label("ODWOŁANA", systemImage: "xmark.circle.fill")
+                            .font(.system(size: 8, weight: .heavy, design: .rounded))
+                            .tracking(0.35)
+                            .foregroundStyle(Color.red)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.red.opacity(0.13), in: Capsule())
+                    }
                     if substitution {
                         Label("ZASTĘPSTWO", systemImage: "arrow.triangle.2.circlepath")
                             .font(.system(size: 8, weight: .heavy, design: .rounded))
@@ -2140,7 +2172,7 @@ private struct TimetableView: View {
                     LinearGradient(
                         colors: [
                             Color(uiColor: .secondarySystemGroupedBackground),
-                            accent.opacity(substitution || current ? 0.10 : 0.025)
+                            accent.opacity(cancelled || substitution || current ? 0.10 : 0.025)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -2155,15 +2187,16 @@ private struct TimetableView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(accent.opacity(substitution || current ? 0.27 : 0.07), lineWidth: substitution || current ? 1.3 : 1)
+                .strokeBorder(accent.opacity(cancelled || substitution || current ? 0.27 : 0.07), lineWidth: cancelled || substitution || current ? 1.3 : 1)
         }
-        .shadow(color: accent.opacity(substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
+        .shadow(color: accent.opacity(cancelled || substitution || current ? 0.08 : 0.025), radius: 12, x: 0, y: 5)
         .animation(.snappy(duration: 0.22), value: current)
         .animation(.snappy(duration: 0.22), value: substitution)
+        .animation(.snappy(duration: 0.22), value: cancelled)
     }
 
     private func isCurrentLesson(_ lesson: LessonPeriod) -> Bool {
-        guard Calendar.current.isDateInToday(selectedDate) else { return false }
+        guard !lesson.isCancelled, Calendar.current.isDateInToday(selectedDate) else { return false }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "HH:mm"

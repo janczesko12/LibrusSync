@@ -23,7 +23,19 @@ final class CalendarWriter: ObservableObject {
     private init() { selectedCalendarIdentifier = UserDefaults.standard.string(forKey: selectedKey) }
 
     func prepareAccessAndLoadCalendars() async throws {
-        let granted = try await store.requestFullAccessToEvents()
+        // Reuse an existing full-access grant instead of requesting access on every
+        // refresh. This is important because BGAppRefreshTask must not depend on
+        // presenting a permission prompt while the app is in the background.
+        let authorization = EKEventStore.authorizationStatus(for: .event)
+        let granted: Bool
+        switch authorization {
+        case .fullAccess:
+            granted = true
+        case .notDetermined:
+            granted = try await store.requestFullAccessToEvents()
+        default:
+            granted = false
+        }
         guard granted else { throw SyncError.calendarPermissionDenied }
 
         var writable = store.calendars(for: .event).filter { $0.allowsContentModifications }
