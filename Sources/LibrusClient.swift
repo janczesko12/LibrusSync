@@ -292,7 +292,7 @@ final class LibrusClient {
         guard !rows.isEmpty else { throw TimetableLoadError.noPublishedPlan }
 
         var lessonsByDay = Array(repeating: [LessonPeriod](), count: 5)
-        let cellPattern = #"<td\b(?=[^>]*\bid\s*=\s*["']timetableEntryBox["'])(?=[^>]*\bclass\s*=\s*["']line1["'])[^>]*>(.*?)</td>"#
+        let cellPattern = #"<td\b(?=[^>]*\bid\s*=\s*["']timetableEntryBox["'])(?=[^>]*\bclass\s*=\s*["'][^"']*\bline1\b[^"']*["'])[^>]*>(.*?)</td>"#
         let centerCellPattern = #"<td\b(?=[^>]*\bclass\s*=\s*["'][^"']*\bcenter\b[^"']*["'])[^>]*>(.*?)</td>"#
         let dataAttributePattern = #"\bdata-[A-Za-z0-9_-]+\s*=\s*["']([^"']*)["']"#
         let textDivPattern = #"<div\b(?=[^>]*\bclass\s*=\s*["'][^"']*\btext\b[^"']*["'])[^>]*>(.*?)</div>"#
@@ -345,7 +345,7 @@ final class LibrusClient {
                     .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
                     .lowercased()
                 let isCancelled = statusSource.range(
-                    of: #"(?:odwol\w*|anul\w*|cancelled|canceled|lesson[_ -]?cancel)"#,
+                    of: #"(?:odwol\w*|anul\w*|nie\s+odbedzie\s+sie|nie\s+odbeda\s+sie|cancelled|canceled|lesson[_ -]?cancel)"#,
                     options: .regularExpression
                 ) != nil
                 let subject = subjects.joined(separator: " / ").trimmingCharacters(in: .whitespacesAndNewlines)
