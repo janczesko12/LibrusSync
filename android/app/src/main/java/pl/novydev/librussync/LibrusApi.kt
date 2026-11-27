@@ -28,6 +28,12 @@ data class SchoolEvent(
     val endTimestamp: Long,
     val notes: String
 ) {
+    val isAllDay: Boolean
+        get() = endTimestamp - timestamp >= TimeUnit.HOURS.toMillis(23)
+
+    val isUpcoming: Boolean
+        get() = if (isAllDay) endTimestamp > System.currentTimeMillis() else timestamp > System.currentTimeMillis()
+
     val countdown: String
         get() {
             val zone = ZoneId.systemDefault()
@@ -97,7 +103,7 @@ class LibrusApi {
         for (index in 0 until rows.length()) {
             val row = rows.optJSONObject(index) ?: continue
             val event = mapEvent(row, categories, subjects) ?: continue
-            if (event.timestamp >= now - TimeUnit.DAYS.toMillis(1) && isAssessment(event)) {
+            if (event.isUpcoming && isAssessment(event)) {
                 result += event
             }
         }
