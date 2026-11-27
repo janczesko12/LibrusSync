@@ -141,9 +141,30 @@ class LibrusApi {
         val postBody = post.body?.string().orEmpty()
         post.close()
         checkCaptcha(postBody)
-        if (postCode in 400..499) throw LibrusException("Librus nie zaakceptował logowania. Sprawdź login i hasło.")
+        when {
+            postCode == 401 || postCode == 403 ->
+                throw LibrusException("Nieprawidłowy login lub hasło. Sprawdź dane konta Librus i spróbuj ponownie.")
+            postCode == 429 ->
+                throw LibrusException("Librus ograniczył liczbę prób logowania. Odczekaj chwilę i spróbuj ponownie.")
+            postCode >= 500 ->
+                throw LibrusException("Librus jest chwilowo niedostępny. Spróbuj ponownie za kilka minut.")
+            postCode !in 200..299 ->
+                throw LibrusException("Nie udało się zalogować (HTTP $postCode). Sprawdź login i hasło.")
+        }
+        val authError = runCatching {
+            val json = JSONObject(postBody)
+            listOf("error_description", "message", "error").firstNotNullOfOrNull { key ->
+                json.optString(key).takeIf { it.isNotBlank() && it != "null" }
+            }.orEmpty()
+        }.getOrDefault("")
         val goTo = runCatching { JSONObject(postBody).optString("goTo") }.getOrDefault("")
-        if (goTo.isBlank()) throw LibrusException("Nie udało się zalogować. Sprawdź dane konta Librus.")
+        if (goTo.isBlank()) {
+            val detail = authError.lowercase()
+            if (listOf("invalid", "incorrect", "password", "login", "hasło", "haslo", "credential").any { detail.contains(it) }) {
+                throw LibrusException("Nieprawidłowy login lub hasło. Sprawdź dane konta Librus i spróbuj ponownie.")
+            }
+            throw LibrusException("Nie udało się zalogować. Sprawdź login i hasło, a następnie spróbuj ponownie.")
+        }
 
         var next = resolve(authorizationScopedUrl, goTo)
         var completed = false
@@ -180,9 +201,11 @@ class LibrusApi {
         val body = response.body?.string().orEmpty()
         response.close()
         if (code == 401 || code == 403 || code in 300..399) {
-            throw LibrusException("Sesja Librusa wygasła. Otwórz aplikację i połącz konto ponownie.")
+            throw LibrusException("Sesja Librusa wygasła lub wymaga ponownego logowania. Połącz konto ponownie.")
         }
-        if (code !in 200..299) throw LibrusException("Librus zwrócił błąd HTTP $code.")
+        if (code == 429) throw LibrusException("Librus ograniczył liczbę zapytań. Odczekaj chwilę i spróbuj ponownie.")
+        if (code >= 500) throw LibrusException("Librus jest chwilowo niedostępny (HTTP $code). Spróbuj później.")
+        if (code !in 200..299) throw LibrusException("Librus zwrócił błąd (HTTP $code). Spróbuj ponownie później.")
         val json = try { JSONObject(body) } catch (_: Exception) {
             if (contentType.contains("text/html", true) || body.contains("<html", true) || body.contains("loguj/portal", true)) {
                 throw LibrusException("Sesja Librusa wygasła. Połącz konto ponownie.")
@@ -296,7 +319,16 @@ class LibrusApi {
         return try {
             client.newCall(builder.build()).execute()
         } catch (error: Exception) {
-            throw LibrusException("Nie można połączyć się z Librusem. Sprawdź internet.", error)
+            val message = when (error) {
+                is java.net.SocketTimeoutException ->
+                    "Librus nie odpowiada. Sprawdź internet i spróbuj ponownie za chwilę."
+                is java.net.UnknownHostException ->
+                    "Brak połączenia z internetem lub serwer Librusa jest niedostępny. Sprawdź sieć."
+                is javax.net.ssl.SSLException ->
+                    "Nie udało się bezpiecznie połączyć z Librusem. Sprawdź datę i godzinę urządzenia oraz internet."
+                else -> "Nie można połączyć się z Librusem. Sprawdź połączenie internetowe."
+            }
+            throw LibrusException(message, error)
         }
     }
 
