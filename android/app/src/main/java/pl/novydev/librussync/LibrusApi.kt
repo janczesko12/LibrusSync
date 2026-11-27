@@ -2,7 +2,6 @@ package pl.novydev.librussync
 
 import okhttp3.Cookie
 import okhttp3.CookieJar
-import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -108,7 +107,10 @@ class LibrusApi {
     private fun login(login: String, password: String) {
         val first = request(portalLogin, "GET")
         val firstLocation = first.header("Location")
-            ?: throw LibrusException("Nie udało się rozpocząć logowania do Librusa. Spróbuj ponownie później.")
+        first.close()
+        if (firstLocation.isNullOrBlank()) {
+            throw LibrusException("Nie udało się rozpocząć logowania do Librusa. Spróbuj ponownie później.")
+        }
         val authUrl = resolve(portalLogin, firstLocation)
         request(authUrl, "GET").close()
 
@@ -139,17 +141,18 @@ class LibrusApi {
 
         var next = resolve(authorizationScopedUrl, goTo)
         var completed = false
-        repeat(10) {
+        for (step in 0 until 10) {
             val response = request(next, "GET")
             val code = response.code
             val location = response.header("Location")
+            val responseText = response.body?.string().orEmpty()
             response.close()
-            checkCaptcha("")
+            checkCaptcha(responseText)
             if (code in 300..399 && !location.isNullOrBlank()) {
                 next = resolve(next, location)
             } else if (code in 200..299) {
                 completed = true
-                return@repeat
+                break
             } else {
                 throw LibrusException("Logowanie do Librusa nie zakończyło się poprawnie (HTTP $code).")
             }
