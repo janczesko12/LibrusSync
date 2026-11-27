@@ -138,14 +138,22 @@ private fun LibrusSyncApp(context: Context) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("NAJBLIŻSZE PRACE", color = Purple, fontSize = 11.sp)
                         Text(name.ifBlank { if (profile == "janek") "Janek" else "Franek" }, fontSize = 22.sp)
-                        if (events.isEmpty()) {
-                            Text("Nie ma jeszcze pobranych sprawdzianów ani kartkówek.", color = Muted)
-                            Text("Połącz konto Librus, aby pobrać terminy.", color = Muted, fontSize = 12.sp)
-                        } else {
-                            events.take(5).forEach { event ->
-                                EventRow(event)
+                        AnimatedContent(targetState = events, label = "assessment-list") { visibleEvents ->
+                            if (visibleEvents.isEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Nie ma jeszcze pobranych sprawdzianów ani kartkówek.", color = Muted)
+                                    Text("Połącz konto Librus, aby pobrać terminy.", color = Muted, fontSize = 12.sp)
+                                }
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    visibleEvents.take(5).forEach { event ->
+                                        EventRow(event)
+                                    }
+                                    if (visibleEvents.size > 5) {
+                                        Text("i jeszcze ${visibleEvents.size - 5} kolejnych…", color = Muted, fontSize = 12.sp)
+                                    }
+                                }
                             }
-                            if (events.size > 5) Text("i jeszcze ${events.size - 5} kolejnych…", color = Muted, fontSize = 12.sp)
                         }
                     }
                 }
@@ -286,7 +294,7 @@ private fun EventRow(event: SchoolEvent) {
 @Composable
 private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
     val normalized = status.lowercase()
-    val isError = !busy && listOf("nieprawid", "błąd", "nie udało", "wystąpi", "brak połąc", "wygas", "captcha", "nie został").any { normalized.contains(it) }
+    val isError = !busy && listOf("nieprawid", "błąd", "nie udało", "nie można", "wystąpi", "brak połąc", "wygas", "captcha", "nie został", "nie odpowiada", "ograniczył", "niedostęp", "dodatkowego potwierdzenia").any { normalized.contains(it) }
     val isSuccess = !busy && (normalized.startsWith("zsynchronizowano") || normalized.startsWith("zakończono synchronizację") || normalized == "konto zapisane • gotowe do synchronizacji")
     val accent = when {
         isError -> Color(0xFFFF8A9A)
