@@ -33,7 +33,7 @@ class UpcomingWidget : AppWidgetProvider() {
     private fun updateOne(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
         val widgetPrefs = context.getSharedPreferences("librussync", Context.MODE_PRIVATE)
         val profile = widgetPrefs.getString("active_profile", "janek") ?: "janek"
-        val events = AgendaStore.allEvents(context, profile).filter { it.timestamp > System.currentTimeMillis() - 60_000 }
+        val events = AgendaStore.allEvents(context, profile)
         val views = RemoteViews(context.packageName, R.layout.widget_upcoming)
         views.setTextViewText(R.id.widget_student, AgendaStore.profileName(context, profile))
 
