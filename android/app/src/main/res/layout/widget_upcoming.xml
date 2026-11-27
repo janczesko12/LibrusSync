@@ -23,7 +23,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="LIBRUS SYNC"
-                android:textColor="#B6A6FF"
+                android:textColor="#6650A4"
                 android:textSize="9sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.12" />
@@ -34,7 +34,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
                 android:text="Janek"
-                android:textColor="#FFFFFF"
+                android:textColor="#191825"
                 android:textStyle="bold"
                 android:textSize="17sp"
                 android:maxLines="1" />
@@ -70,7 +70,7 @@
         android:background="@drawable/widget_empty_background"
         android:padding="11dp"
         android:text="Połącz konto Librus, aby zobaczyć terminy"
-        android:textColor="#E5E2F4"
+        android:textColor="#514D5F"
         android:textSize="12sp"
         android:visibility="visible" />
 
@@ -124,6 +124,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="7dp"
         android:text="Dotknij, aby otworzyć aplikację"
-        android:textColor="#9293AA"
+        android:textColor="#777384"
         android:textSize="10sp" />
 </LinearLayout>
