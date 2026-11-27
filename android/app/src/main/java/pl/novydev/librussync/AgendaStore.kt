@@ -10,7 +10,7 @@ object AgendaStore {
     fun allEvents(context: Context, profile: String): List<SchoolEvent> {
         val json = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("events_$profile", null) ?: return emptyList()
         return runCatching { gson.fromJson<List<SchoolEvent>>(json, object : TypeToken<List<SchoolEvent>>() {}.type) ?: emptyList() }
-            .getOrDefault(emptyList()).filter { it.timestamp >= System.currentTimeMillis() - 86_400_000L }.sortedBy { it.timestamp }
+            .getOrDefault(emptyList()).filter { it.isUpcoming }.sortedBy { it.timestamp }
     }
     fun saveEvents(context: Context, profile: String, events: List<SchoolEvent>): List<SchoolEvent> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
