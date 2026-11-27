@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "pl.novydev.librussync"
     compileSdk = 35
-    defaultConfig { applicationId = "pl.novydev.librussync"; minSdk = 26; targetSdk = 35; versionCode = 20; versionName = "0.2.0" }
+    defaultConfig { applicationId = "pl.novydev.librussync"; minSdk = 26; targetSdk = 35; versionCode = 30; versionName = "0.3.0" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
