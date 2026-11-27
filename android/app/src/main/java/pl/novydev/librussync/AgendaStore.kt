@@ -38,7 +38,13 @@ object AgendaStore {
         SecurePrefs.put(context, "password_$profile", password)
     }
     fun clearCredentials(context: Context, profile: String) {
-        SecurePrefs.delete(context, "login_$profile"); SecurePrefs.delete(context, "password_$profile")
+        SecurePrefs.delete(context, "login_$profile")
+        SecurePrefs.delete(context, "password_$profile")
+    }
+    fun clearProfileData(context: Context, profile: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove("events_$profile").remove("has_sync_$profile")
+            .remove("last_sync_$profile").remove("error_$profile").apply()
     }
     fun isConnected(context: Context, profile: String) = !login(context, profile).isNullOrBlank() && !password(context, profile).isNullOrBlank()
     fun markSyncError(context: Context, profile: String, message: String) {
