@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+ android:orientation="vertical" android:padding="14dp" android:background="#17182A">
+ <TextView android:id="@+id/widget_student" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:text="Janek" android:textColor="#C4B5FD" android:textStyle="bold" android:textSize="15sp"/>
+ <TextView android:id="@+id/widget_subject" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:layout_marginTop="8dp" android:text="Połącz Librusa, aby zobaczyć terminy" android:textColor="#FFFFFF" android:textSize="14sp" android:maxLines="2"/>
+ <TextView android:id="@+id/widget_date" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:layout_marginTop="4dp" android:text="LibrusSync" android:textColor="#A5A6B8" android:textSize="12sp"/>
+</LinearLayout>
