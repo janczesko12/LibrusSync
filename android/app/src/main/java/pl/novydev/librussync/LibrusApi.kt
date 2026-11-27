@@ -55,15 +55,15 @@ class LibrusApi {
         @Synchronized override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             cookies.forEach { cookie ->
                 stored.removeAll { it.name == cookie.name && it.domain == cookie.domain && it.path == cookie.path }
-                if (!cookie.expired) stored.add(cookie)
+                if (cookie.expiresAt > System.currentTimeMillis()) stored.add(cookie)
             }
-            stored.removeAll { it.expired }
+            stored.removeAll { it.expiresAt <= System.currentTimeMillis() }
         }
         @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> {
             stored.removeAll { it.expired }
             return stored.filter { it.matches(url) }
         }
-        @Synchronized fun has(name: String): Boolean = stored.any { it.name == name && !it.expired }
+        @Synchronized fun has(name: String): Boolean = stored.any { it.name == name && it.expiresAt > System.currentTimeMillis() }
     }
 
     private val cookieJar = MemoryCookieJar()
@@ -167,7 +167,7 @@ class LibrusApi {
         val response = request(
             "$gateway/$endpoint",
             "GET",
-            headers = mapOf("Accept" to "application/json, text/plain, */*", "Referer" to "https://synergia.librus.pl/")
+            extra = mapOf("Accept" to "application/json, text/plain, */*", "Referer" to "https://synergia.librus.pl/")
         )
         val code = response.code
         val contentType = response.header("Content-Type").orEmpty()
