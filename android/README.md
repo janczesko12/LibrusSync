@@ -1,17 +1,16 @@
-# LibrusSync Android — 0.2.0
+# LibrusSync Android — 0.3.0
 
-Pierwszy natywny szkielet Androida, rozwijany obok istniejącej aplikacji iOS. Nie zmienia kodu iOS.
+Widget-first Android release, rozwijany obok istniejącej aplikacji iOS.
 
-## Wersja 0.2.0
-- Projekt Android Studio: Kotlin + Jetpack Compose.
-- Dwa profile uczniów: Janek i Franek.
-- Przełączanie aktywnego profilu.
-- Pierwszy widżet ekranu głównego Androida (AppWidget), odświeżany po zmianie profilu.
-- Widżet pokazuje nazwę ucznia, najbliższy termin i odliczanie, gdy dane są dostępne.
-- Puste stany zamiast fikcyjnych terminów, dopóki nie ma synchronizacji.
+## Nowości 0.3.0
+- Widżet przełącza profil Janek / Franek bez otwierania aplikacji (strzałki).
+- Widżet ma czytelny nagłówek ucznia, obszar najbliższego terminu i stan pusty.
+- Dotknięcie widżetu otwiera aplikację.
+- Aktualizacja widżetu po zmianie profilu lub nazw uczniów w aplikacji.
+- Podniesiono versionCode do 30 i versionName do 0.3.0.
 
-## Ograniczenia tej wersji
-Logowanie Librus, pobieranie HomeWorks, bezpieczne przechowywanie poświadczeń, synchronizacja w tle i wiele wpisów w dużym widżecie są zaplanowane na kolejne wydanie. Wersja 0.2.0 nie pobiera jeszcze danych z kont Librus.
+## Status synchronizacji
+W tej wersji synchronizacja Librus nie jest jeszcze podłączona do Androida. Widżet nie pokazuje fikcyjnych sprawdzianów. Obsługa logowania, pobierania HomeWorks dla dwóch niezależnych kont, bezpiecznego magazynu poświadczeń i synchronizacji w tle pozostaje kolejnym etapem. Nie wpisuj haseł Librus w żadnym polu testowym.
 
 ## Budowanie
-Otwórz katalog android w Android Studio (JDK 17, Android SDK 35), poczekaj na synchronizację Gradle i uruchom konfigurację app.
+Otwórz katalog android w Android Studio (JDK 17, Android SDK 35), zsynchronizuj Gradle i uruchom konfigurację app.
