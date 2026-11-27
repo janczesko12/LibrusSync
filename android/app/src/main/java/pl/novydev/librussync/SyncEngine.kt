@@ -32,9 +32,8 @@ object SyncEngine {
     fun syncAll(context: Context): Boolean {
         val connected = listOf("janek", "franek").filter { AgendaStore.isConnected(context, it) }
         if (connected.isEmpty()) return false
-        var success = false
-        connected.forEach { if (syncProfile(context, it).success) success = true }
-        return success
+        val results = connected.map { syncProfile(context, it).success }
+        return results.all { it }
     }
 }
 
