@@ -66,7 +66,7 @@ class LibrusApi {
             stored.removeAll { it.expiresAt <= System.currentTimeMillis() }
         }
         @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            stored.removeAll { it.expired }
+            stored.removeAll { it.expiresAt <= System.currentTimeMillis() }
             return stored.filter { it.matches(url) }
         }
         @Synchronized fun has(name: String): Boolean = stored.any { it.name == name && it.expiresAt > System.currentTimeMillis() }
