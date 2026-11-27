@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+ android:orientation="vertical" android:padding="12dp" android:background="#17182A">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+  <TextView android:id="@+id/widget_student" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Janek" android:textColor="#C4B5FD" android:textStyle="bold" android:textSize="15sp"/>
+  <TextView android:id="@+id/widget_previous" android:layout_width="40dp" android:layout_height="36dp" android:gravity="center" android:text="‹" android:textColor="#FFFFFF" android:textSize="25sp" android:contentDescription="Poprzedni uczeń"/>
+  <TextView android:id="@+id/widget_next" android:layout_width="40dp" android:layout_height="36dp" android:gravity="center" android:text="›" android:textColor="#FFFFFF" android:textSize="25sp" android:contentDescription="Następny uczeń"/>
+ </LinearLayout>
+ <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="7dp" android:text="Brak pobranych terminów" android:textColor="#FFFFFF" android:textSize="14sp"/>
+ <LinearLayout android:id="@+id/widget_events" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+  <TextView android:id="@+id/widget_event_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp" android:textColor="#FFFFFF" android:textSize="13sp" android:maxLines="1"/>
+  <TextView android:id="@+id/widget_event_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp" android:textColor="#FFFFFF" android:textSize="13sp" android:maxLines="1"/>
+  <TextView android:id="@+id/widget_event_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp" android:textColor="#FFFFFF" android:textSize="13sp" android:maxLines="1"/>
+ </LinearLayout>
+ <TextView android:id="@+id/widget_footer" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="LibrusSync • dotknij, aby otworzyć" android:textColor="#A5A6B8" android:textSize="10sp"/>
+</LinearLayout>
