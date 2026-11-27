@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
         Text("LibrusSync", fontSize=27.sp, color=Color.White)
         Text("Wszystkie szkolne terminy w jednym miejscu", color=Color.LightGray, fontSize=12.sp)
        }
-       Text("0.2.0", color=Purple)
+       Text("0.3.0", color=Purple)
       }
       Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
        ProfileButton(janek, active=="Janek", Modifier.weight(1f)) {
