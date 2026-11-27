@@ -294,7 +294,7 @@ private fun EventRow(event: SchoolEvent) {
 @Composable
 private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
     val normalized = status.lowercase()
-    val isError = !busy && listOf("nieprawid", "błąd", "nie udało", "nie można", "wystąpi", "brak połąc", "wygas", "captcha", "nie został", "nie odpowiada", "ograniczył", "niedostęp", "dodatkowego potwierdzenia").any { normalized.contains(it) }
+    val isError = !busy && listOf("nieprawid", "błąd", "nie udało", "nie można", "wystąpi", "brak połąc", "brak login", "brak hasła", "wygas", "captcha", "nie został", "nie udostępnił", "nie odczytać", "nie odpowiada", "ograniczył", "niedostęp", "dodatkowego potwierdzenia").any { normalized.contains(it) }
     val isSuccess = !busy && (normalized.startsWith("zsynchronizowano") || normalized.startsWith("zakończono synchronizację") || normalized == "konto zapisane • gotowe do synchronizacji")
     val accent = when {
         isError -> Color(0xFFFF8A9A)
