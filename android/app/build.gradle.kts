@@ -1,4 +1,4 @@
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
 android {
     namespace = "pl.novydev.librussync"
     compileSdk = 35
