@@ -252,8 +252,8 @@ class LibrusApi {
         return output
     }
 
-    private fun nestedId(value: Any?): String {
-        val obj = value as? JSONObject ?: return ""
+    private fun nestedId(raw: Any?): String {
+        val obj = raw as? JSONObject ?: return ""
         return value(obj.opt("Id"))
     }
 
