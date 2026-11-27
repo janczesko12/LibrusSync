@@ -108,7 +108,7 @@ private fun LibrusSyncApp(context: Context) {
                         Text("Sprawdziany i kartkówki • Android", color = Muted, fontSize = 12.sp)
                     }
                     Surface(color = Color(0xFF30264F), shape = RoundedCornerShape(50)) {
-                        Text("1.0.0", Modifier.padding(horizontal = 12.dp, vertical = 7.dp), color = Purple, fontSize = 12.sp)
+                        Text("1.0.1", Modifier.padding(horizontal = 12.dp, vertical = 7.dp), color = Purple, fontSize = 12.sp)
                     }
                 }
 
