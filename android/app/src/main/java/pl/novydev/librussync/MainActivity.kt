@@ -53,9 +53,8 @@ private fun LibrusSyncApp(context: Context) {
     var login by remember { mutableStateOf(AgendaStore.login(context, profile).orEmpty()) }
     var password by remember { mutableStateOf("") }
     var events by remember { mutableStateOf(AgendaStore.allEvents(context, profile)) }
-    var status by remember { mutableStateOf(AgendaStore.lastError(context, profile) ?: "Połącz konto Librus Synergia") }
+    var status by remember { mutableStateOf(AgendaStore.lastError(context, profile)?.takeIf { it.isNotBlank() } ?: "Połącz konto Librus Synergia") }
     var busy by remember { mutableStateOf(false) }
-    var showPasswordHelp by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
@@ -115,7 +114,7 @@ private fun LibrusSyncApp(context: Context) {
                             try {
                                 val success = withContext(Dispatchers.IO) { SyncEngine.syncAll(context) }
                                 events = AgendaStore.allEvents(context, profile)
-                                status = if (success) "Zakończono synchronizację obu kont." else "Nie udało się zsynchronizować żadnego konta. Sprawdź dane logowania."
+                                status = if (success) "Zakończono synchronizację wszystkich podłączonych kont." else "Co najmniej jedno konto nie zostało zsynchronizowane. Sprawdź status profilu."
                             } catch (error: Exception) {
                                 status = error.message ?: "Wystąpił błąd synchronizacji."
                             } finally { busy = false }
@@ -203,6 +202,8 @@ private fun LibrusSyncApp(context: Context) {
                                 enabled = !busy && AgendaStore.isConnected(context, profile),
                                 onClick = {
                                     AgendaStore.clearCredentials(context, profile)
+                                    AgendaStore.clearProfileData(context, profile)
+                                    androidx.work.WorkManager.getInstance(context).cancelAllWorkByTag("reminders_$profile")
                                     events = emptyList()
                                     status = "Konto odłączone"
                                     UpcomingWidget.refresh(context)
