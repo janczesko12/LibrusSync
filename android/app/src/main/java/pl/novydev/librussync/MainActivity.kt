@@ -35,9 +35,7 @@ import java.util.Date
 import java.util.Locale
 
 private val Navy = Color(0xFF10111F)
-private val Panel = Color(0xFF1B1D30)
 private val Purple = Color(0xFF9B7BFF)
-private val Muted = Color(0xFFB8B8C8)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,7 +93,7 @@ private fun LibrusSyncApp(context: Context) {
         primary = Color(0xFF6650A4), background = Color(0xFFF7F7FB), surface = Color.White,
         onBackground = Color(0xFF191825), onSurface = Color(0xFF191825),
         onPrimary = Color.White, surfaceVariant = Color(0xFFECEAF4),
-        onSurfaceVariant = Color(0xFF625F70), outline = Color(0xFFD5D1E0)
+        onSurfaceVariant = Color(0xFF292633), outline = Color(0xFFD5D1E0)
     )
     MaterialTheme(
         colorScheme = appColors,
@@ -118,7 +116,7 @@ private fun LibrusSyncApp(context: Context) {
                         Text("Sprawdziany i kartkówki • Android", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                     Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(50)) {
-                        Text("1.0.1", Modifier.padding(horizontal = 12.dp, vertical = 7.dp), color = Purple, fontSize = 12.sp)
+                        Text("1.0.3", Modifier.padding(horizontal = 12.dp, vertical = 7.dp), color = Purple, fontSize = 12.sp)
                     }
                 }
 
@@ -152,7 +150,7 @@ private fun LibrusSyncApp(context: Context) {
                             if (visibleEvents.isEmpty()) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text("Nie ma jeszcze pobranych sprawdzianów ani kartkówek.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("Połącz konto Librus, aby pobrać terminy.", color = Muted, fontSize = 12.sp)
+                                    Text("Połącz konto Librus, aby pobrać terminy.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                 }
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -160,7 +158,7 @@ private fun LibrusSyncApp(context: Context) {
                                         EventRow(event)
                                     }
                                     if (visibleEvents.size > 5) {
-                                        Text("i jeszcze ${visibleEvents.size - 5} kolejnych…", color = Muted, fontSize = 12.sp)
+                                        Text("i jeszcze ${visibleEvents.size - 5} kolejnych…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -168,7 +166,7 @@ private fun LibrusSyncApp(context: Context) {
                     }
                 }
 
-                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(26.dp)) {
+                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(26.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("KONTO LIBRUS", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                         OutlinedTextField(
@@ -187,7 +185,7 @@ private fun LibrusSyncApp(context: Context) {
                         )
                         Text(
                             if (AgendaStore.isConnected(context, profile)) "Dane konta są zapisane w Android Keystore." else "Dane logowania będą zaszyfrowane na tym urządzeniu.",
-                            color = Muted, fontSize = 11.sp
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
                         )
                         Button(
                             enabled = !busy && login.isNotBlank() && (password.isNotBlank() || AgendaStore.isConnected(context, profile)),
@@ -249,8 +247,8 @@ private fun LibrusSyncApp(context: Context) {
                     busy = busy,
                     lastSync = if (last > 0) SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale("pl", "PL")).format(Date(last)) else null
                 )
-                Text("Widżet: przytrzymaj ekran główny telefonu, wybierz Widżety → LibrusSync. Strzałkami zmienisz Janka i Franka bez otwierania aplikacji.", color = Muted, fontSize = 12.sp)
-                Text("Synchronizacja w tle jest okresowa (co około 6 godzin) i zależy od ograniczeń baterii oraz systemu Android.", color = Muted, fontSize = 11.sp)
+                Text("Widżet: przytrzymaj ekran główny telefonu, wybierz Widżety → LibrusSync. Strzałkami zmienisz Janka i Franka bez otwierania aplikacji.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text("Synchronizacja w tle jest okresowa (co około 6 godzin) i zależy od ograniczeń baterii oraz systemu Android.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
     }
@@ -290,12 +288,12 @@ private fun EventRow(event: SchoolEvent) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(event.subject.ifBlank { event.category.ifBlank { "Praca szkolna" } }, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-                Text(event.title, color = Muted, fontSize = 11.sp, maxLines = 2)
+                Text(event.title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 2)
             }
             Spacer(Modifier.width(10.dp))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(event.countdown, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-                Text(event.dateLabel, color = Muted, fontSize = 11.sp)
+                Text(event.dateLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
     }
@@ -342,10 +340,10 @@ private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
-            Text(status, color = Color.White, fontSize = 13.sp)
+            Text(status, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             Text(
                 lastSync?.let { "Ostatnia synchronizacja: $it" } ?: "Brak zakończonej synchronizacji",
-                color = Muted, fontSize = 11.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
             )
         }
     }
