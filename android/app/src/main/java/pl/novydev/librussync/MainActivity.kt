@@ -312,8 +312,8 @@ private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
         else -> Purple
     }
     val panel = when {
-        isError -> if (isDarkThemeColor()) Color(0xFF38232D) else Color(0xFFFFE9EC)
-        isSuccess -> if (isDarkThemeColor()) Color(0xFF1D342F) else Color(0xFFE5F5EC)
+        isError -> if (isSystemInDarkTheme()) Color(0xFF38232D) else Color(0xFFFFE9EC)
+        isSuccess -> if (isSystemInDarkTheme()) Color(0xFF1D342F) else Color(0xFFE5F5EC)
         else -> MaterialTheme.colorScheme.surface
     }
     Card(
