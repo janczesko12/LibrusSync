@@ -43,7 +43,6 @@ object ReminderScheduler {
     fun schedule(context: Context, profile: String, events: List<SchoolEvent>) {
         val workManager = WorkManager.getInstance(context)
         val reminderTag = "reminders_$profile"
-        workManager.cancelAllWorkByTag(reminderTag)
         events.forEach { event ->
             val now = System.currentTimeMillis()
             val dayBefore = event.timestamp - TimeUnit.HOURS.toMillis(24)
@@ -54,7 +53,7 @@ object ReminderScheduler {
                 .putString("title", event.title).putLong("timestamp", event.timestamp).build()
             val request = OneTimeWorkRequestBuilder<ReminderWorker>().setInputData(data)
                 .addTag(reminderTag).setInitialDelay(trigger - now, TimeUnit.MILLISECONDS).build()
-            workManager.enqueueUniqueWork("reminder_${profile}_${event.id.hashCode()}", ExistingWorkPolicy.REPLACE, request)
+            workManager.enqueueUniqueWork("reminder_${profile}_${event.id.hashCode()}_${event.timestamp}", ExistingWorkPolicy.KEEP, request)
         }
     }
 }
