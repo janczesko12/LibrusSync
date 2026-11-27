@@ -1,7 +1,7 @@
 name: Android build
 on:
   push:
-    branches: [android-v1.0.0]
+    branches: [android-v1.0.0, release/android-v1.0.0]
     paths: ["android/**", ".github/workflows/android-build.yml"]
   pull_request:
     paths: ["android/**", ".github/workflows/android-build.yml"]
