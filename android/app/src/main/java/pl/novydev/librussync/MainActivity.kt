@@ -9,6 +9,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.with
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,10 +89,19 @@ private fun LibrusSyncApp(context: Context) {
         }
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(
-        background = Navy, surface = Panel, primary = Purple,
-        onBackground = Color.White, onSurface = Color.White
-    )) {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            background = Navy, surface = Panel, primary = Purple,
+            onBackground = Color.White, onSurface = Color.White
+        ),
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(10.dp),
+            small = RoundedCornerShape(14.dp),
+            medium = RoundedCornerShape(20.dp),
+            large = RoundedCornerShape(26.dp),
+            extraLarge = RoundedCornerShape(30.dp)
+        )
+    ) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp),
@@ -116,13 +133,13 @@ private fun LibrusSyncApp(context: Context) {
                                 events = AgendaStore.allEvents(context, profile)
                                 status = if (success) "Zakończono synchronizację wszystkich podłączonych kont." else "Co najmniej jedno konto nie zostało zsynchronizowane. Sprawdź status profilu."
                             } catch (error: Exception) {
-                                status = error.message ?: "Wystąpił błąd synchronizacji."
+                                status = friendlyError(error)
                             } finally { busy = false }
                         }
                     }
                 ) { Text("Synchronizuj Janka i Franka") }
 
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
+                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(26.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("NAJBLIŻSZE PRACE", color = Purple, fontSize = 11.sp)
                         Text(name.ifBlank { if (profile == "janek") "Janek" else "Franek" }, fontSize = 22.sp)
@@ -138,7 +155,7 @@ private fun LibrusSyncApp(context: Context) {
                     }
                 }
 
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(20.dp)) {
+                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(26.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("KONTO LIBRUS", color = Purple, fontSize = 11.sp)
                         OutlinedTextField(
@@ -175,7 +192,7 @@ private fun LibrusSyncApp(context: Context) {
                                         events = AgendaStore.allEvents(context, profile)
                                         SyncScheduler.schedulePeriodic(context)
                                     } catch (error: Exception) {
-                                        status = error.message ?: "Nie udało się bezpiecznie zapisać danych konta."
+                                        status = friendlyError(error)
                                     } finally { busy = false }
                                 }
                             }
@@ -193,7 +210,7 @@ private fun LibrusSyncApp(context: Context) {
                                             status = result.message
                                             events = AgendaStore.allEvents(context, profile)
                                         } catch (error: Exception) {
-                                            status = error.message ?: "Błąd synchronizacji."
+                                            status = friendlyError(error)
                                         } finally { busy = false }
                                     }
                                 }
@@ -213,15 +230,12 @@ private fun LibrusSyncApp(context: Context) {
                     }
                 }
 
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("STATUS", color = Purple, fontSize = 11.sp)
-                        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Purple)
-                        Text(status, color = Color.White, fontSize = 13.sp)
-                        val last = AgendaStore.lastSync(context, profile)
-                        Text(if (last > 0) "Ostatnia synchronizacja: ${SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale("pl", "PL")).format(Date(last))}" else "Brak zakończonej synchronizacji", color = Muted, fontSize = 11.sp)
-                    }
-                }
+                val last = AgendaStore.lastSync(context, profile)
+                StatusCard(
+                    status = status,
+                    busy = busy,
+                    lastSync = if (last > 0) SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale("pl", "PL")).format(Date(last)) else null
+                )
                 Text("Widżet: przytrzymaj ekran główny telefonu, wybierz Widżety → LibrusSync. Strzałkami zmienisz Janka i Franka bez otwierania aplikacji.", color = Muted, fontSize = 12.sp)
                 Text("Synchronizacja w tle jest okresowa (co około 6 godzin) i zależy od ograniczeń baterii oraz systemu Android.", color = Muted, fontSize = 11.sp)
             }
@@ -236,21 +250,111 @@ private fun switchProfile(next: String, prefs: android.content.SharedPreferences
 
 @Composable
 private fun ProfileButton(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = modifier, colors = ButtonDefaults.buttonColors(
-        containerColor = if (selected) Purple else Panel, contentColor = Color.White
-    )) { Text(label) }
+    val background by animateColorAsState(
+        targetValue = if (selected) Purple else Panel,
+        label = "profile-button-color"
+    )
+    Button(
+        onClick = onClick,
+        modifier = modifier.animateContentSize(),
+        shape = RoundedCornerShape(18.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = if (selected) 3.dp else 0.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = background, contentColor = Color.White)
+    ) {
+        AnimatedContent(targetState = selected, label = "profile-button-label") { active ->
+            Text(if (active) "●  $label" else label, fontSize = 14.sp)
+        }
+    }
 }
 
 @Composable
 private fun EventRow(event: SchoolEvent) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(event.subject.ifBlank { event.category.ifBlank { "Praca szkolna" } }, color = Color.White, fontSize = 14.sp)
-            Text(event.title, color = Muted, fontSize = 11.sp, maxLines = 2)
+    Surface(
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        color = Color(0xFF24263B),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(event.subject.ifBlank { event.category.ifBlank { "Praca szkolna" } }, color = Color.White, fontSize = 14.sp)
+                Text(event.title, color = Muted, fontSize = 11.sp, maxLines = 2)
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(event.countdown, color = Color(0xFFFFA58F), fontSize = 12.sp)
+                Text(event.dateLabel, color = Muted, fontSize = 11.sp)
+            }
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(event.countdown, color = Color(0xFFFF9A83), fontSize = 12.sp)
-            Text(event.dateLabel, color = Muted, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
+    val normalized = status.lowercase()
+    val isError = !busy && listOf("nieprawid", "błąd", "nie udało", "wystąpi", "brak połąc", "wygas", "captcha", "nie został").any { normalized.contains(it) }
+    val isSuccess = !busy && (normalized.startsWith("zsynchronizowano") || normalized.startsWith("zakończono synchronizację") || normalized == "konto zapisane • gotowe do synchronizacji")
+    val accent = when {
+        isError -> Color(0xFFFF8A9A)
+        isSuccess -> Color(0xFF7FE0B2)
+        else -> Purple
+    }
+    val panel = when {
+        isError -> Color(0xFF38232D)
+        isSuccess -> Color(0xFF1D342F)
+        else -> Panel
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        colors = CardDefaults.cardColors(containerColor = panel),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Surface(color = accent.copy(alpha = 0.16f), shape = RoundedCornerShape(50)) {
+                    Text(
+                        when { busy -> "…" ; isError -> "!" ; isSuccess -> "✓" ; else -> "●" },
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        color = accent, fontSize = 14.sp
+                    )
+                }
+                Text(
+                    when { busy -> "Synchronizacja w toku" ; isError -> "Coś poszło nie tak" ; isSuccess -> "Wszystko gotowe" ; else -> "Status konta" },
+                    color = accent, fontSize = 13.sp
+                )
+            }
+            if (busy) {
+                LinearProgressIndicator(
+                    Modifier.fillMaxWidth(),
+                    color = Purple,
+                    trackColor = Color(0xFF3A3654)
+                )
+            }
+            Text(status, color = Color.White, fontSize = 13.sp)
+            Text(
+                lastSync?.let { "Ostatnia synchronizacja: $it" } ?: "Brak zakończonej synchronizacji",
+                color = Muted, fontSize = 11.sp
+            )
         }
+    }
+}
+
+private fun friendlyError(error: Throwable): String {
+    val message = error.message.orEmpty()
+    val normalized = message.lowercase()
+    return when {
+        normalized.contains("nieprawidłowy login") || normalized.contains("nieprawidlowy login") ->
+            "Nieprawidłowy login lub hasło. Sprawdź dane konta Librus i spróbuj ponownie."
+        normalized.contains("captcha") || normalized.contains("dodatkowego potwierdzenia") ->
+            "Librus wymaga dodatkowego potwierdzenia logowania. Dokończ je w oficjalnej aplikacji lub przeglądarce."
+        normalized.contains("timeout") || normalized.contains("przekroczył limit czasu") ->
+            "Połączenie z Librusem trwało zbyt długo. Sprawdź internet i spróbuj ponownie."
+        normalized.contains("internet") || normalized.contains("połączyć się") ->
+            "Nie można połączyć się z Librusem. Sprawdź połączenie internetowe."
+        normalized.contains("sesja") ->
+            "Sesja Librusa wygasła. Połącz konto ponownie, wpisując login i hasło."
+        normalized.contains("429") || normalized.contains("za dużo prób") ->
+            "Librus ograniczył liczbę prób. Odczekaj chwilę i spróbuj ponownie."
+        message.isBlank() -> "Coś poszło nie tak. Spróbuj ponownie za chwilę."
+        else -> message
     }
 }
