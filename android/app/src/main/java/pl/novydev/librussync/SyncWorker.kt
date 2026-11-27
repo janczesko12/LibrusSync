@@ -21,12 +21,11 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val profile = inputData.getString("profile") ?: return Result.failure()
         val eventId = inputData.getString("event_id") ?: return Result.failure()
-        val title = inputData.getString("title") ?: "Sprawdzian lub kartkówka"
         val timestamp = inputData.getLong("timestamp", 0L)
-        val stillExists = AgendaStore.allEvents(applicationContext, profile).any { it.id == eventId && it.timestamp == timestamp }
-        if (stillExists) Notifications.show(applicationContext,
+        val event = AgendaStore.allEvents(applicationContext, profile).firstOrNull { it.id == eventId && it.timestamp == timestamp }
+        if (event != null) Notifications.show(applicationContext,
             "Nadchodząca praca • ${AgendaStore.profileName(applicationContext, profile)}",
-            "$title • ${AgendaStore.profileName(applicationContext, profile)}", (profile + eventId + "reminder").hashCode())
+            "${event.title} • ${AgendaStore.profileName(applicationContext, profile)}", (profile + eventId + "reminder").hashCode())
         return Result.success()
     }
 }
