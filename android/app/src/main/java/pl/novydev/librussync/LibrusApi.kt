@@ -148,8 +148,10 @@ class LibrusApi {
                 throw LibrusException("Librus ograniczył liczbę prób logowania. Odczekaj chwilę i spróbuj ponownie.")
             postCode >= 500 ->
                 throw LibrusException("Librus jest chwilowo niedostępny. Spróbuj ponownie za kilka minut.")
-            postCode !in 200..299 ->
-                throw LibrusException("Nie udało się zalogować (HTTP $postCode). Sprawdź login i hasło.")
+            postCode == 400 ->
+                throw LibrusException("Nieprawidłowy login lub hasło. Sprawdź dane konta Librus i spróbuj ponownie.")
+            postCode in 400..499 ->
+                throw LibrusException("Librus odrzucił próbę logowania (HTTP $postCode). Sprawdź login i hasło.")
         }
         val authError = runCatching {
             val json = JSONObject(postBody)
