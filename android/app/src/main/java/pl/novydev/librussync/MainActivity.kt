@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -46,7 +47,8 @@ class MainActivity : ComponentActivity() {
 private fun LibrusSyncApp(context: Context) {
     val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences("librussync", Context.MODE_PRIVATE) }
-    var profile by remember { mutableStateOf(prefs.getString("active_profile", "janek") ?: "janek") }
+    val storedProfile = prefs.getString("active_profile", "janek") ?: "janek"
+    var profile by remember { mutableStateOf(if (storedProfile.equals("Franek", true)) "franek" else "janek") }
     var name by remember { mutableStateOf(AgendaStore.profileName(context, profile)) }
     var login by remember { mutableStateOf(AgendaStore.login(context, profile).orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -57,6 +59,7 @@ private fun LibrusSyncApp(context: Context) {
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
+        prefs.edit().putString("active_profile", profile).apply()
         SyncScheduler.schedulePeriodic(context)
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -70,8 +73,13 @@ private fun LibrusSyncApp(context: Context) {
         login = AgendaStore.login(context, profile).orEmpty()
         password = ""
         events = AgendaStore.allEvents(context, profile)
-        status = AgendaStore.lastError(context, profile) ?: if (AgendaStore.isConnected(context, profile)) "Konto zapisane • gotowe do synchronizacji" else "Połącz konto Librus Synergia"
+        status = AgendaStore.lastError(context, profile)?.takeIf { it.isNotBlank() }
+            ?: if (AgendaStore.isConnected(context, profile)) "Konto zapisane • gotowe do synchronizacji" else "Połącz konto Librus Synergia"
         UpcomingWidget.refresh(context)
+        while (true) {
+            delay(30_000)
+            events = AgendaStore.allEvents(context, profile)
+        }
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
@@ -97,6 +105,23 @@ private fun LibrusSyncApp(context: Context) {
                     ProfileButton("Janek", profile == "janek", Modifier.weight(1f)) { switchProfile("janek", prefs) { profile = it } }
                     ProfileButton("Franek", profile == "franek", Modifier.weight(1f)) { switchProfile("franek", prefs) { profile = it } }
                 }
+                OutlinedButton(
+                    enabled = !busy && (AgendaStore.isConnected(context, "janek") || AgendaStore.isConnected(context, "franek")),
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        scope.launch {
+                            busy = true
+                            status = "Synchronizuję oba konta…"
+                            try {
+                                val success = withContext(Dispatchers.IO) { SyncEngine.syncAll(context) }
+                                events = AgendaStore.allEvents(context, profile)
+                                status = if (success) "Zakończono synchronizację obu kont." else "Nie udało się zsynchronizować żadnego konta. Sprawdź dane logowania."
+                            } catch (error: Exception) {
+                                status = error.message ?: "Wystąpił błąd synchronizacji."
+                            } finally { busy = false }
+                        }
+                    }
+                ) { Text("Synchronizuj Janka i Franka") }
 
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -149,6 +174,9 @@ private fun LibrusSyncApp(context: Context) {
                                         val result = withContext(Dispatchers.IO) { SyncEngine.syncProfile(context, profile) }
                                         status = result.message
                                         events = AgendaStore.allEvents(context, profile)
+                                        SyncScheduler.schedulePeriodic(context)
+                                    } catch (error: Exception) {
+                                        status = error.message ?: "Nie udało się bezpiecznie zapisać danych konta."
                                     } finally { busy = false }
                                 }
                             }
@@ -161,10 +189,13 @@ private fun LibrusSyncApp(context: Context) {
                                     scope.launch {
                                         busy = true
                                         status = "Synchronizuję…"
-                                        val result = withContext(Dispatchers.IO) { SyncEngine.syncProfile(context, profile) }
-                                        status = result.message
-                                        events = AgendaStore.allEvents(context, profile)
-                                        busy = false
+                                        try {
+                                            val result = withContext(Dispatchers.IO) { SyncEngine.syncProfile(context, profile) }
+                                            status = result.message
+                                            events = AgendaStore.allEvents(context, profile)
+                                        } catch (error: Exception) {
+                                            status = error.message ?: "Błąd synchronizacji."
+                                        } finally { busy = false }
                                     }
                                 }
                             ) { Text("Synchronizuj teraz") }
