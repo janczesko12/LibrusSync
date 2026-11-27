@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -84,11 +85,20 @@ private fun LibrusSyncApp(context: Context) {
         }
     }
 
+    val isDark = isSystemInDarkTheme()
+    val appColors = if (isDark) darkColorScheme(
+        primary = Purple, background = Color(0xFF10111F), surface = Color(0xFF1B1D30),
+        onBackground = Color(0xFFF7F6FC), onSurface = Color(0xFFF7F6FC),
+        onPrimary = Color(0xFF171327), surfaceVariant = Color(0xFF292A40),
+        onSurfaceVariant = Color(0xFFB8B8C8), outline = Color(0xFF514D68)
+    ) else lightColorScheme(
+        primary = Color(0xFF6650A4), background = Color(0xFFF7F7FB), surface = Color.White,
+        onBackground = Color(0xFF191825), onSurface = Color(0xFF191825),
+        onPrimary = Color.White, surfaceVariant = Color(0xFFECEAF4),
+        onSurfaceVariant = Color(0xFF625F70), outline = Color(0xFFD5D1E0)
+    )
     MaterialTheme(
-        colorScheme = darkColorScheme(
-            background = Navy, surface = Panel, primary = Purple,
-            onBackground = Color.White, onSurface = Color.White
-        ),
+        colorScheme = appColors,
         shapes = Shapes(
             extraSmall = RoundedCornerShape(10.dp),
             small = RoundedCornerShape(14.dp),
@@ -97,17 +107,17 @@ private fun LibrusSyncApp(context: Context) {
             extraLarge = RoundedCornerShape(30.dp)
         )
     ) {
-        Surface(Modifier.fillMaxSize(), color = Navy) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("LibrusSync", fontSize = 28.sp, color = Color.White)
-                        Text("Sprawdziany i kartkówki • Android", color = Muted, fontSize = 12.sp)
+                        Text("LibrusSync", fontSize = 28.sp, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Sprawdziany i kartkówki • Android", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
-                    Surface(color = Color(0xFF30264F), shape = RoundedCornerShape(50)) {
+                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(50)) {
                         Text("1.0.1", Modifier.padding(horizontal = 12.dp, vertical = 7.dp), color = Purple, fontSize = 12.sp)
                     }
                 }
@@ -134,14 +144,14 @@ private fun LibrusSyncApp(context: Context) {
                     }
                 ) { Text("Synchronizuj Janka i Franka") }
 
-                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(26.dp)) {
+                Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(26.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("NAJBLIŻSZE PRACE", color = Purple, fontSize = 11.sp)
+                        Text("NAJBLIŻSZE PRACE", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                         Text(name.ifBlank { if (profile == "janek") "Janek" else "Franek" }, fontSize = 22.sp)
                         AnimatedContent(targetState = events, label = "assessment-list") { visibleEvents ->
                             if (visibleEvents.isEmpty()) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Nie ma jeszcze pobranych sprawdzianów ani kartkówek.", color = Muted)
+                                    Text("Nie ma jeszcze pobranych sprawdzianów ani kartkówek.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("Połącz konto Librus, aby pobrać terminy.", color = Muted, fontSize = 12.sp)
                                 }
                             } else {
@@ -160,7 +170,7 @@ private fun LibrusSyncApp(context: Context) {
 
                 Card(modifier = Modifier.animateContentSize(), colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(26.dp)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("KONTO LIBRUS", color = Purple, fontSize = 11.sp)
+                        Text("KONTO LIBRUS", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it; AgendaStore.setProfileName(context, profile, it); UpcomingWidget.refresh(context) },
@@ -254,7 +264,7 @@ private fun switchProfile(next: String, prefs: android.content.SharedPreferences
 @Composable
 private fun ProfileButton(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val background by animateColorAsState(
-        targetValue = if (selected) Purple else Panel,
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         label = "profile-button-color"
     )
     Button(
@@ -262,7 +272,7 @@ private fun ProfileButton(label: String, selected: Boolean, modifier: Modifier, 
         modifier = modifier.animateContentSize(),
         shape = RoundedCornerShape(18.dp),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = if (selected) 3.dp else 0.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = background, contentColor = Color.White)
+        colors = ButtonDefaults.buttonColors(containerColor = background, contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
     ) {
         AnimatedContent(targetState = selected, label = "profile-button-label") { active ->
             Text(if (active) "●  $label" else label, fontSize = 14.sp)
@@ -274,17 +284,17 @@ private fun ProfileButton(label: String, selected: Boolean, modifier: Modifier, 
 private fun EventRow(event: SchoolEvent) {
     Surface(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
-        color = Color(0xFF24263B),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(event.subject.ifBlank { event.category.ifBlank { "Praca szkolna" } }, color = Color.White, fontSize = 14.sp)
+                Text(event.subject.ifBlank { event.category.ifBlank { "Praca szkolna" } }, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                 Text(event.title, color = Muted, fontSize = 11.sp, maxLines = 2)
             }
             Spacer(Modifier.width(10.dp))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(event.countdown, color = Color(0xFFFFA58F), fontSize = 12.sp)
+                Text(event.countdown, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(event.dateLabel, color = Muted, fontSize = 11.sp)
             }
         }
@@ -302,9 +312,9 @@ private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
         else -> Purple
     }
     val panel = when {
-        isError -> Color(0xFF38232D)
-        isSuccess -> Color(0xFF1D342F)
-        else -> Panel
+        isError -> if (isDarkThemeColor()) Color(0xFF38232D) else Color(0xFFFFE9EC)
+        isSuccess -> if (isDarkThemeColor()) Color(0xFF1D342F) else Color(0xFFE5F5EC)
+        else -> MaterialTheme.colorScheme.surface
     }
     Card(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
@@ -329,7 +339,7 @@ private fun StatusCard(status: String, busy: Boolean, lastSync: String?) {
                 LinearProgressIndicator(
                     Modifier.fillMaxWidth(),
                     color = Purple,
-                    trackColor = Color(0xFF3A3654)
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
             Text(status, color = Color.White, fontSize = 13.sp)
