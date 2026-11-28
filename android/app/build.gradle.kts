@@ -6,8 +6,8 @@ android {
         applicationId = "pl.novydev.librussync"
         minSdk = 26
         targetSdk = 35
-        versionCode = 104
-        versionName = "1.0.4"
+        versionCode = 105
+        versionName = "1.0.5"
     }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

@@ -48,7 +48,7 @@
             android:background="@drawable/widget_control_background"
             android:gravity="center"
             android:text="‹"
-            android:textColor="#FFFFFF"
+            android:textColor="#5B21B6"
             android:textSize="23sp" />
 
         <TextView
@@ -58,7 +58,7 @@
             android:background="@drawable/widget_control_background"
             android:gravity="center"
             android:text="›"
-            android:textColor="#FFFFFF"
+            android:textColor="#5B21B6"
             android:textSize="23sp" />
     </LinearLayout>
 
@@ -70,7 +70,7 @@
         android:background="@drawable/widget_empty_background"
         android:padding="11dp"
         android:text="Połącz konto Librus, aby zobaczyć terminy"
-        android:textColor="#514D5F"
+        android:textColor="#292633"
         android:textSize="12sp"
         android:visibility="visible" />
 
@@ -90,7 +90,7 @@
             android:background="@drawable/widget_event_background"
             android:paddingHorizontal="10dp"
             android:paddingVertical="8dp"
-            android:textColor="#FFFFFF"
+            android:textColor="#191825"
             android:textSize="12sp"
             android:maxLines="2" />
 
@@ -102,7 +102,7 @@
             android:background="@drawable/widget_event_background"
             android:paddingHorizontal="10dp"
             android:paddingVertical="8dp"
-            android:textColor="#FFFFFF"
+            android:textColor="#191825"
             android:textSize="12sp"
             android:maxLines="2" />
 
@@ -113,7 +113,7 @@
             android:background="@drawable/widget_event_background"
             android:paddingHorizontal="10dp"
             android:paddingVertical="8dp"
-            android:textColor="#FFFFFF"
+            android:textColor="#191825"
             android:textSize="12sp"
             android:maxLines="2" />
     </LinearLayout>
